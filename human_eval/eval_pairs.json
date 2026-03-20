@@ -1,0 +1,212 @@
+[
+  {
+    "arc": "sophia_realization",
+    "type": "solo",
+    "stock_prompt": "Victorian woman portrait, subtle head movement, slight smile, blinking eyes, warm lighting",
+    "translated_prompt": "Victorian woman portrait, subtle shift in attention, knowing smile forming, gaze flickering with inner reflection, warm lighting, with expressive presence, natural features preserved",
+    "neuro_prompt": "The young woman's eyes brighten with quiet realization, a knowing smile forming as inspiration takes hold, warmth spreading across her expression",
+    "salience": {
+      "stock": {
+        "emotional_score": 0.0,
+        "literal_score": 0.5,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "translated": {
+        "emotional_score": 0.667,
+        "literal_score": 0.0,
+        "salience_ratio": 6.67,
+        "estimated_step_reduction": "20.0%",
+        "recommended_steps": 24
+      },
+      "neuro": {
+        "emotional_score": 0.857,
+        "literal_score": 0.0,
+        "salience_ratio": 8.57,
+        "estimated_step_reduction": "25.0%",
+        "recommended_steps": 22
+      }
+    }
+  },
+  {
+    "arc": "sophia_contemplation",
+    "type": "solo",
+    "stock_prompt": "Victorian woman portrait, looking thoughtful, gentle movements, soft lighting",
+    "translated_prompt": "Victorian woman portrait, looking thoughtful, gentle movements, soft lighting, with expressive presence, natural features preserved",
+    "neuro_prompt": "Her gaze turns inward with deep contemplation, a subtle shift from curiosity to understanding, quiet wisdom settling in her features",
+    "salience": {
+      "stock": {
+        "emotional_score": 0.0,
+        "literal_score": 0.5,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "translated": {
+        "emotional_score": 0.0,
+        "literal_score": 0.5,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "neuro": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      }
+    }
+  },
+  {
+    "arc": "sophia_determination",
+    "type": "solo",
+    "stock_prompt": "Victorian woman portrait, serious expression, focused look, slight movement",
+    "translated_prompt": "Victorian woman portrait, serious expression, focused look, slight movement, with expressive presence, natural features preserved",
+    "neuro_prompt": "Quiet determination hardens in her eyes, jaw setting with newfound resolve, inner fire building behind composed exterior",
+    "salience": {
+      "stock": {
+        "emotional_score": 0.0,
+        "literal_score": 0.5,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "translated": {
+        "emotional_score": 0.0,
+        "literal_score": 0.5,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "neuro": {
+        "emotional_score": 0.833,
+        "literal_score": 0.0,
+        "salience_ratio": 8.33,
+        "estimated_step_reduction": "25.0%",
+        "recommended_steps": 22
+      }
+    }
+  },
+  {
+    "arc": "elyan_sophia_focus",
+    "type": "complex",
+    "stock_prompt": "Victorian exhibition, woman working on machine, man watching, gaslight flickering",
+    "translated_prompt": "Victorian exhibition, woman working on machine, man watching, gaslight flickering, orchestrating multiple elements, natural features preserved",
+    "neuro_prompt": "The young woman works with fierce concentration, confident hands moving with purpose, quiet authority radiating as she masters the brass machinery",
+    "salience": {
+      "stock": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "translated": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "neuro": {
+        "emotional_score": 0.667,
+        "literal_score": 0.0,
+        "salience_ratio": 6.67,
+        "estimated_step_reduction": "20.0%",
+        "recommended_steps": 24
+      }
+    }
+  },
+  {
+    "arc": "elyan_claude_focus",
+    "type": "complex",
+    "stock_prompt": "Victorian exhibition, older man gesturing, woman at machine, warm lighting",
+    "translated_prompt": "Victorian exhibition, older man gesturing, woman at machine, warm lighting, orchestrating multiple elements, natural features preserved",
+    "neuro_prompt": "The older gentleman's skepticism softens to grudging respect, pride wounded but giving way to reluctant admiration",
+    "salience": {
+      "stock": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "translated": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "neuro": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      }
+    }
+  },
+  {
+    "arc": "debate_passion",
+    "type": "complex",
+    "stock_prompt": "Two people in conversation, gesturing, fireplace glowing, Victorian study",
+    "translated_prompt": "Two people in conversation, gesturing, fireplace glowing, Victorian study, orchestrating multiple elements, natural features preserved",
+    "neuro_prompt": "Passionate intellectual exchange, conviction burning in their eyes, the electricity of clashing ideas filling the air between them",
+    "salience": {
+      "stock": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "translated": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "neuro": {
+        "emotional_score": 0.667,
+        "literal_score": 0.0,
+        "salience_ratio": 6.67,
+        "estimated_step_reduction": "20.0%",
+        "recommended_steps": 24
+      }
+    }
+  },
+  {
+    "arc": "debate_tension",
+    "type": "complex",
+    "stock_prompt": "Two people talking, subtle movements, warm firelight, period room",
+    "translated_prompt": "Two people talking, subtle movements, warm firelight, period room, orchestrating multiple elements, natural features preserved",
+    "neuro_prompt": "Tension crackling between them, unspoken challenge in their gazes, the air thick with intellectual rivalry",
+    "salience": {
+      "stock": {
+        "emotional_score": 0.0,
+        "literal_score": 0.5,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "translated": {
+        "emotional_score": 0.0,
+        "literal_score": 0.5,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      },
+      "neuro": {
+        "emotional_score": 0.0,
+        "literal_score": 0.0,
+        "salience_ratio": 0.0,
+        "estimated_step_reduction": "0.0%",
+        "recommended_steps": 30
+      }
+    }
+  }
+]

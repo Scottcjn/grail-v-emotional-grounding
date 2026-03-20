@@ -1,0 +1,475 @@
+{
+  "model": "openai/clip-vit-base-patch32",
+  "num_files": 70,
+  "mean_clip_score": {
+    "STOCK": 0.25652,
+    "NEURO": 0.23881,
+    "delta": -0.01771
+  },
+  "per_arc": {
+    "sophia_realization": {
+      "STOCK_mean": 0.23195,
+      "NEURO_mean": 0.24535,
+      "STOCK_n": 5,
+      "NEURO_n": 5
+    },
+    "sophia_contemplation": {
+      "STOCK_mean": 0.17919,
+      "NEURO_mean": 0.2248,
+      "STOCK_n": 5,
+      "NEURO_n": 5
+    },
+    "sophia_determination": {
+      "STOCK_mean": 0.19989,
+      "NEURO_mean": 0.22358,
+      "STOCK_n": 5,
+      "NEURO_n": 5
+    },
+    "elyan_sophia_focus": {
+      "STOCK_mean": 0.24107,
+      "NEURO_mean": 0.22557,
+      "STOCK_n": 5,
+      "NEURO_n": 5
+    },
+    "elyan_claude_focus": {
+      "STOCK_mean": 0.26784,
+      "NEURO_mean": 0.21247,
+      "STOCK_n": 5,
+      "NEURO_n": 5
+    },
+    "debate_passion": {
+      "STOCK_mean": 0.35539,
+      "NEURO_mean": 0.2716,
+      "STOCK_n": 5,
+      "NEURO_n": 5
+    },
+    "debate_tension": {
+      "STOCK_mean": 0.32031,
+      "NEURO_mean": 0.26831,
+      "STOCK_n": 5,
+      "NEURO_n": 5
+    }
+  },
+  "per_file": [
+    {
+      "arc": "debate_passion",
+      "condition": "NEURO",
+      "seed": "42424242",
+      "clip_score": 0.26699
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "NEURO",
+      "seed": "42425242",
+      "clip_score": 0.26716
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "NEURO",
+      "seed": "42426242",
+      "clip_score": 0.27898
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "NEURO",
+      "seed": "42427242",
+      "clip_score": 0.2729
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "NEURO",
+      "seed": "42428242",
+      "clip_score": 0.27195
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "STOCK",
+      "seed": "42424242",
+      "clip_score": 0.35743
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "STOCK",
+      "seed": "42425242",
+      "clip_score": 0.35644
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "STOCK",
+      "seed": "42426242",
+      "clip_score": 0.35871
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "STOCK",
+      "seed": "42427242",
+      "clip_score": 0.34931
+    },
+    {
+      "arc": "debate_passion",
+      "condition": "STOCK",
+      "seed": "42428242",
+      "clip_score": 0.35505
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "NEURO",
+      "seed": "42424242",
+      "clip_score": 0.26791
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "NEURO",
+      "seed": "42425242",
+      "clip_score": 0.2695
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "NEURO",
+      "seed": "42426242",
+      "clip_score": 0.27209
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "NEURO",
+      "seed": "42427242",
+      "clip_score": 0.26482
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "NEURO",
+      "seed": "42428242",
+      "clip_score": 0.26721
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "STOCK",
+      "seed": "42424242",
+      "clip_score": 0.32042
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "STOCK",
+      "seed": "42425242",
+      "clip_score": 0.3253
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "STOCK",
+      "seed": "42426242",
+      "clip_score": 0.3215
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "STOCK",
+      "seed": "42427242",
+      "clip_score": 0.31687
+    },
+    {
+      "arc": "debate_tension",
+      "condition": "STOCK",
+      "seed": "42428242",
+      "clip_score": 0.31747
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "NEURO",
+      "seed": "42424242",
+      "clip_score": 0.21366
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "NEURO",
+      "seed": "42425242",
+      "clip_score": 0.211
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "NEURO",
+      "seed": "42426242",
+      "clip_score": 0.2134
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "NEURO",
+      "seed": "42427242",
+      "clip_score": 0.21168
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "NEURO",
+      "seed": "42428242",
+      "clip_score": 0.21259
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "STOCK",
+      "seed": "42424242",
+      "clip_score": 0.26429
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "STOCK",
+      "seed": "42425242",
+      "clip_score": 0.27265
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "STOCK",
+      "seed": "42426242",
+      "clip_score": 0.27385
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "STOCK",
+      "seed": "42427242",
+      "clip_score": 0.27272
+    },
+    {
+      "arc": "elyan_claude_focus",
+      "condition": "STOCK",
+      "seed": "42428242",
+      "clip_score": 0.2557
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "NEURO",
+      "seed": "42424242",
+      "clip_score": 0.22637
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "NEURO",
+      "seed": "42425242",
+      "clip_score": 0.21945
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "NEURO",
+      "seed": "42426242",
+      "clip_score": 0.23874
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "NEURO",
+      "seed": "42427242",
+      "clip_score": 0.22589
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "NEURO",
+      "seed": "42428242",
+      "clip_score": 0.21742
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "STOCK",
+      "seed": "42424242",
+      "clip_score": 0.24239
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "STOCK",
+      "seed": "42425242",
+      "clip_score": 0.24084
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "STOCK",
+      "seed": "42426242",
+      "clip_score": 0.25437
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "STOCK",
+      "seed": "42427242",
+      "clip_score": 0.24062
+    },
+    {
+      "arc": "elyan_sophia_focus",
+      "condition": "STOCK",
+      "seed": "42428242",
+      "clip_score": 0.22711
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "NEURO",
+      "seed": "42424242",
+      "clip_score": 0.22451
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "NEURO",
+      "seed": "42425242",
+      "clip_score": 0.22444
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "NEURO",
+      "seed": "42426242",
+      "clip_score": 0.22474
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "NEURO",
+      "seed": "42427242",
+      "clip_score": 0.22448
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "NEURO",
+      "seed": "42428242",
+      "clip_score": 0.22583
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "STOCK",
+      "seed": "42424242",
+      "clip_score": 0.18289
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "STOCK",
+      "seed": "42425242",
+      "clip_score": 0.17605
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "STOCK",
+      "seed": "42426242",
+      "clip_score": 0.17905
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "STOCK",
+      "seed": "42427242",
+      "clip_score": 0.17431
+    },
+    {
+      "arc": "sophia_contemplation",
+      "condition": "STOCK",
+      "seed": "42428242",
+      "clip_score": 0.18364
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "NEURO",
+      "seed": "42424242",
+      "clip_score": 0.23017
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "NEURO",
+      "seed": "42425242",
+      "clip_score": 0.2205
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "NEURO",
+      "seed": "42426242",
+      "clip_score": 0.22137
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "NEURO",
+      "seed": "42427242",
+      "clip_score": 0.22337
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "NEURO",
+      "seed": "42428242",
+      "clip_score": 0.22248
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "STOCK",
+      "seed": "42424242",
+      "clip_score": 0.19902
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "STOCK",
+      "seed": "42425242",
+      "clip_score": 0.19837
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "STOCK",
+      "seed": "42426242",
+      "clip_score": 0.20198
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "STOCK",
+      "seed": "42427242",
+      "clip_score": 0.19904
+    },
+    {
+      "arc": "sophia_determination",
+      "condition": "STOCK",
+      "seed": "42428242",
+      "clip_score": 0.20104
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "NEURO",
+      "seed": "42424242",
+      "clip_score": 0.24736
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "NEURO",
+      "seed": "42425242",
+      "clip_score": 0.24527
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "NEURO",
+      "seed": "42426242",
+      "clip_score": 0.24596
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "NEURO",
+      "seed": "42427242",
+      "clip_score": 0.24473
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "NEURO",
+      "seed": "42428242",
+      "clip_score": 0.24344
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "STOCK",
+      "seed": "42424242",
+      "clip_score": 0.22996
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "STOCK",
+      "seed": "42425242",
+      "clip_score": 0.23244
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "STOCK",
+      "seed": "42426242",
+      "clip_score": 0.22976
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "STOCK",
+      "seed": "42427242",
+      "clip_score": 0.23278
+    },
+    {
+      "arc": "sophia_realization",
+      "condition": "STOCK",
+      "seed": "42428242",
+      "clip_score": 0.23481
+    }
+  ]
+}
