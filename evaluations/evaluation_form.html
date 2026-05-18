@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAIL-V 2AFC Video Evaluation Form</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #9ca3af;
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --success: #22c55e;
+    --warning: #f59e0b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.15rem; color: var(--accent); margin: 1.5rem 0 0.75rem; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .instructions { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+  .instructions ul { margin-left: 1.2rem; margin-top: 0.5rem; }
+  .instructions li { margin-bottom: 0.3rem; }
+
+  /* Progress bar */
+  .progress-wrap {
+    background: var(--border);
+    border-radius: 999px;
+    height: 8px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+    border-radius: 999px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+  .progress-text { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+
+  /* Evaluator ID */
+  .eval-id-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    width: 260px;
+    margin-top: 0.5rem;
+  }
+  .eval-id-input:focus { outline: none; border-color: var(--accent); }
+
+  /* Video pair */
+  .pair-section { margin-bottom: 2rem; }
+  .pair-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .pair-number {
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  .arc-badge {
+    background: var(--accent);
+    color: white;
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .videos-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .video-box {
+    background: #000;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    text-align: center;
+  }
+  .video-box video {
+    width: 100%;
+    max-height: 280px;
+    display: block;
+  }
+  .video-label {
+    padding: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    background: rgba(0,0,0,0.4);
+  }
+  .video-placeholder {
+    padding: 3rem 1rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  /* Questions */
+  .question-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .q-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+  .q-options {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .q-btn {
+    flex: 1;
+    padding: 0.5rem 0.25rem;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .q-btn:hover { border-color: var(--accent); }
+  .q-btn.selected {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    font-weight: 600;
+  }
+  .q-btn.tie { font-style: italic; }
+
+  /* Submit */
+  .submit-section { text-align: center; margin-top: 2rem; }
+  .submit-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.75rem 2.5rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .submit-btn:hover { background: var(--accent-hover); }
+  .submit-btn:disabled {
+    background: var(--border);
+    cursor: not-allowed;
+    color: var(--muted);
+  }
+
+  /* Output */
+  .output-area {
+    margin-top: 1.5rem;
+  }
+  .output-area textarea {
+    width: 100%;
+    height: 200px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--success);
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    resize: vertical;
+  }
+  .copy-btn {
+    margin-top: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .copy-btn:hover { border-color: var(--accent); }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem; }
+    .videos-row { grid-template-columns: 1fr; }
+    .question-group { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>GRAIL-V 2AFC Video Evaluation</h1>
+  <p class="subtitle">CVPR 2026 Workshop — Emotional Vocabulary as Semantic Grounding</p>
+
+  <div class="card">
+    <div class="instructions">
+      <strong>Instructions:</strong>
+      <ul>
+        <li>Enter your Evaluator ID below.</li>
+        <li>For each of the <strong>14 video pairs</strong>, watch both videos (they loop automatically).</li>
+        <li>Answer <strong>3 questions</strong> per pair: visual quality, emotional accuracy, and overall preference.</li>
+        <li>Select <strong>A</strong>, <strong>B</strong>, or <strong>No difference</strong> for each question.</li>
+        <li>After all 42 questions, click <strong>Submit</strong> and copy the JSON output.</li>
+      </ul>
+    </div>
+    <label for="evalId" style="font-weight:600;">Evaluator ID:</label><br>
+    <input type="text" id="evalId" class="eval-id-input" placeholder="e.g., evaluator_001">
+  </div>
+
+  <div class="progress-text" id="progressText">0 / 42 questions answered</div>
+  <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+  <div id="pairsContainer"></div>
+
+  <div class="submit-section">
+    <button class="submit-btn" id="submitBtn" disabled>Submit Evaluation</button>
+  </div>
+
+  <div class="output-area" id="outputArea" style="display:none;">
+    <h2>Your Results (JSON)</h2>
+    <textarea id="outputJson" readonly></textarea>
+    <button class="copy-btn" id="copyBtn">Copy to Clipboard</button>
+  </div>
+</div>
+
+<script>
+// ---- Configuration ----
+const ARCS = [
+  "realization", "contemplation", "determination",
+  "confidence", "respect", "passion", "tension"
+];
+const SEEDS = ["42424242", "42425242"];
+const QUESTIONS = [
+  { key: "quality",  label: "Visual Quality",        text: "Which video has higher visual quality?" },
+  { key: "emotion",  label: "Emotional Accuracy",     text: "Which video better matches the emotional description?" },
+  { key: "preference", label: "Overall Preference",   text: "Which video do you prefer overall?" }
+];
+
+// Deterministic A/B assignment (seed 20260320)
+function seededRandom(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+const rng = seededRandom(20260320);
+const pairs = [];
+for (const arc of ARCS) {
+  for (const seed of SEEDS) {
+    const aIsNeuro = rng() > 0.5;
+    pairs.push({
+      arc, seed,
+      a_condition: aIsNeuro ? "NEURO" : "STOCK",
+      b_condition: aIsNeuro ? "STOCK" : "NEURO",
+      videoA: `${arc}_${seed}_${aIsNeuro ? 'neuro' : 'stock'}.mp4`,
+      videoB: `${arc}_${seed}_${aIsNeuro ? 'stock' : 'neuro'}.mp4`,
+    });
+  }
+}
+
+// ---- State ----
+const responses = {}; // pairIndex -> { quality, emotion, preference }
+
+// ---- Render ----
+const container = document.getElementById("pairsContainer");
+
+pairs.forEach((pair, i) => {
+  const section = document.createElement("div");
+  section.className = "pair-section card";
+  section.innerHTML = `
+    <div class="pair-header">
+      <span class="pair-number">Pair ${i + 1} of 14</span>
+      <span class="arc-badge">${pair.arc}</span>
+    </div>
+    <div class="videos-row">
+      <div class="video-box">
+        <div class="video-label">Video A</div>
+        <video id="vidA${i}" loop playsinline muted controls>
+          <source src="videos/${pair.videoA}" type="video/mp4">
+        </video>
+        <div class="video-placeholder" id="phA${i}" style="display:none;">
+          Missing: videos/${pair.videoA}
+        </div>
+      </div>
+      <div class="video-box">
+        <div class="video-label">Video B</div>
+        <video id="vidB${i}" loop playsinline muted controls>
+          <source src="videos/${pair.videoB}" type="video/mp4">
+        </video>
+        <div class="video-placeholder" id="phB${i}" style="display:none;">
+          Missing: videos/${pair.videoB}
+        </div>
+      </div>
+    </div>
+    ${QUESTIONS.map(q => `
+      <div class="q-label">${q.text}</div>
+      <div class="q-options">
+        <button class="q-btn" data-pair="${i}" data-q="${q.key}" data-val="A">A</button>
+        <button class="q-btn" data-pair="${i}" data-q="${q.key}" data-val="B">B</button>
+        <button class="q-btn tie" data-pair="${i}" data-q="${q.key}" data-val="TIE">No difference</button>
+      </div>
+    `).join("")}
+  `;
+  container.appendChild(section);
+
+  // Check video load
+  const vidA = section.querySelector(`#vidA${i}`);
+  const vidB = section.querySelector(`#vidB${i}`);
+  const phA = section.querySelector(`#phA${i}`);
+  const phB = section.querySelector(`#phB${i}`);
+  vidA.addEventListener("error", () => { vidA.style.display = "none"; phA.style.display = "block"; });
+  vidB.addEventListener("error", () => { vidB.style.display = "none"; phB.style.display = "block"; });
+});
+
+// ---- Button Logic ----
+container.addEventListener("click", (e) => {
+  const btn = e.target.closest(".q-btn");
+  if (!btn) return;
+
+  const pi = btn.dataset.pair;
+  const qk = btn.dataset.q;
+  const val = btn.dataset.val;
+
+  if (!responses[pi]) responses[pi] = {};
+  responses[pi][qk] = val;
+
+  // Update button states for this question
+  const siblings = btn.parentElement.querySelectorAll(".q-btn");
+  siblings.forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+
+  updateProgress();
+});
+
+function updateProgress() {
+  let answered = 0;
+  for (let i = 0; i < pairs.length; i++) {
+    if (responses[i]) {
+      for (const q of QUESTIONS) {
+        if (responses[i][q.key]) answered++;
+      }
+    }
+  }
+  const total = pairs.length * QUESTIONS.length;
+  document.getElementById("progressText").textContent = `${answered} / ${total} questions answered`;
+  document.getElementById("progressBar").style.width = `${(answered / total) * 100}%`;
+  document.getElementById("submitBtn").disabled = (answered < total);
+}
+
+// ---- Submit ----
+document.getElementById("submitBtn").addEventListener("click", () => {
+  const evalId = document.getElementById("evalId").value.trim() || "anonymous";
+  const output = {
+    evaluator_id: evalId,
+    timestamp: new Date().toISOString(),
+    total_pairs: pairs.length,
+    questions_per_pair: QUESTIONS.length,
+    pairs: pairs.map((p, i) => ({
+      pair_index: i + 1,
+      arc: p.arc,
+      seed: p.seed,
+      a_condition: p.a_condition,
+      b_condition: p.b_condition,
+      responses: responses[i] || {}
+    })),
+    summary: { STOCK: {}, NEURO: {}, TIE: {} }
+  };
+
+  // Compute summary
+  for (const q of QUESTIONS) {
+    output.summary.STOCK[q.key] = 0;
+    output.summary.NEURO[q.key] = 0;
+    output.summary.TIE[q.key] = 0;
+  }
+  for (let i = 0; i < pairs.length; i++) {
+    const r = responses[i] || {};
+    for (const q of QUESTIONS) {
+      const val = r[q.key];
+      if (val === "TIE") {
+        output.summary.TIE[q.key]++;
+      } else if (val) {
+        // Decode: which condition did the evaluator choose?
+        const chosen = (val === "A") ? pairs[i].a_condition : pairs[i].b_condition;
+        output.summary[chosen][q.key]++;
+      }
+    }
+  }
+
+  const jsonStr = JSON.stringify(output, null, 2);
+  document.getElementById("outputJson").value = jsonStr;
+  document.getElementById("outputArea").style.display = "block";
+  document.getElementById("submitBtn").disabled = true;
+  document.getElementById("submitBtn").textContent = "Submitted ✓";
+});
+
+// ---- Copy ----
+document.getElementById("copyBtn").addEventListener("click", () => {
+  const ta = document.getElementById("outputJson");
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(() => {
+    document.getElementById("copyBtn").textContent = "Copied!";
+    setTimeout(() => {
+      document.getElementById("copyBtn").textContent = "Copy to Clipboard";
+    }, 2000);
+  });
+});
+</script>
+</body>
+</html>
