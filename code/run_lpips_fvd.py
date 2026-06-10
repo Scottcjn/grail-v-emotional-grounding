@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """
 LPIPS and FVD Metrics for Neuromorphic Benchmark
 =================================================

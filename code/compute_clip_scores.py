@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """
 GRAIL-V Paper: Text Embedding Similarity Analysis
 ===================================================

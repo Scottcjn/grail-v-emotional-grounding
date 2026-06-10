@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """
 Steps-vs-LPIPS Convergence Sweep for GRAIL-V Camera-Ready
 Renders solo portraits at multiple step counts, computes LPIPS vs 60-step reference.

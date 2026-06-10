@@ -1,3 +1,5 @@
+[![BCOS Certified](https://img.shields.io/badge/BCOS-Certified-brightgreen?style=flat)](BCOS.md)
+
 # Emotional Vocabulary as Semantic Grounding
 
 **How Language Register Affects Diffusion Efficiency in Image-to-Video Generation**
