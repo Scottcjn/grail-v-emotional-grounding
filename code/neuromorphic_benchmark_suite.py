@@ -17,17 +17,51 @@ Goal: Demonstrate 20% efficiency gain with statistical significance.
 import os
 import json
 import time
-import requests
 from dataclasses import dataclass
 from typing import List, Dict, Tuple
 from datetime import datetime
-from seed_scaffolding import CognitiveSeedScaffolder, CognitiveFunction
 
-COMFYUI_SERVER = "http://192.168.0.133:8188"
-OUTPUT_DIR = "/home/scott/grail_paper/benchmark_results"
+import grail_config
+from neuromorphic_prompt_translator import CognitiveFunction
 
-# Ensure output directory exists
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+try:
+    # Author's private helper; not part of this repository.
+    from seed_scaffolding import CognitiveSeedScaffolder
+    HAVE_SEED_SCAFFOLDING = True
+except ModuleNotFoundError:
+    CognitiveSeedScaffolder = None
+    HAVE_SEED_SCAFFOLDING = False
+
+COMFYUI_SERVER = grail_config.comfyui_server()
+OUTPUT_DIR = os.path.dirname(grail_config.benchmark_dir())
+
+# Seed sequence of the published runs.  Every filename in
+# data/clip_image_text_scores.json carries its seed, and the five seeds used
+# there are BASE_SEED + 1000 * i, i = 0..4.  Used when seed_scaffolding is
+# unavailable so the released suite reproduces the published seeds.
+BASE_SEED = 42424242
+SEED_STRIDE = 1000
+
+
+def published_seeds(num_seeds: int, base_seed: int = BASE_SEED) -> List[int]:
+    """Deterministic seeds matching the renders behind the paper's numbers."""
+    return [base_seed + SEED_STRIDE * i for i in range(num_seeds)]
+
+
+def source_image(filename: str) -> str:
+    """Absolute path of a benchmark source image (GRAIL_SOURCE_IMAGE_DIR)."""
+    return os.path.join(grail_config.source_image_dir(), filename)
+
+
+def benchmark_seeds(num_seeds: int, base_seed: int = BASE_SEED) -> List[int]:
+    """Scaffolded seeds when available, otherwise the published sequence."""
+    if HAVE_SEED_SCAFFOLDING:
+        scaffolder = CognitiveSeedScaffolder(base_seed=base_seed)
+        scaffold = scaffolder.generate_scaffold(
+            CognitiveFunction.LANGUAGE, num_frames=num_seeds * 10
+        )
+        return list(scaffold.frame_seeds[:num_seeds])
+    return published_seeds(num_seeds, base_seed)
 
 
 @dataclass
@@ -49,7 +83,7 @@ TEST_CASES = [
     # --- SOPHIA VICTORIAN (Woman, Portrait) ---
     TestCase(
         name="sophia_realization",
-        image_path="/home/scott/sophia_victorian_frame.png",
+        image_path=source_image("sophia_victorian_frame.png"),
         stock_prompt="Victorian woman portrait, subtle head movement, slight smile, blinking eyes, warm lighting",
         neuro_prompt="The young woman's eyes brighten with quiet realization, a knowing smile forming as inspiration takes hold, warmth spreading across her expression",
         subject_type="woman",
@@ -57,7 +91,7 @@ TEST_CASES = [
     ),
     TestCase(
         name="sophia_contemplation",
-        image_path="/home/scott/sophia_victorian_frame.png",
+        image_path=source_image("sophia_victorian_frame.png"),
         stock_prompt="Victorian woman portrait, looking thoughtful, gentle movements, soft lighting",
         neuro_prompt="Her gaze turns inward with deep contemplation, a subtle shift from curiosity to understanding, quiet wisdom settling in her features",
         subject_type="woman",
@@ -65,7 +99,7 @@ TEST_CASES = [
     ),
     TestCase(
         name="sophia_determination",
-        image_path="/home/scott/sophia_victorian_frame.png",
+        image_path=source_image("sophia_victorian_frame.png"),
         stock_prompt="Victorian woman portrait, serious expression, focused look, slight movement",
         neuro_prompt="Quiet determination hardens in her eyes, jaw setting with newfound resolve, inner fire building behind composed exterior",
         subject_type="woman",
@@ -75,7 +109,7 @@ TEST_CASES = [
     # --- ELYAN LABS (Two characters - test sequential arcs) ---
     TestCase(
         name="elyan_sophia_focus",
-        image_path="/home/scott/grail_paper/sophia_elyan_labs.png",
+        image_path=source_image("sophia_elyan_labs.png"),
         stock_prompt="Victorian exhibition, woman working on machine, man watching, gaslight flickering",
         neuro_prompt="The young woman works with fierce concentration, confident hands moving with purpose, quiet authority radiating as she masters the brass machinery",
         subject_type="woman_focus",
@@ -83,7 +117,7 @@ TEST_CASES = [
     ),
     TestCase(
         name="elyan_claude_focus",
-        image_path="/home/scott/grail_paper/sophia_elyan_labs.png",
+        image_path=source_image("sophia_elyan_labs.png"),
         stock_prompt="Victorian exhibition, older man gesturing, woman at machine, warm lighting",
         neuro_prompt="The older gentleman's skepticism softens to grudging respect, pride wounded but giving way to reluctant admiration",
         subject_type="man_focus",
@@ -93,7 +127,7 @@ TEST_CASES = [
     # --- DEBATE SCENE (Dynamic interaction) ---
     TestCase(
         name="debate_passion",
-        image_path="/home/scott/sophia_claude_i2v_debate_preview.png",
+        image_path=source_image("sophia_claude_i2v_debate_preview.png"),
         stock_prompt="Two people in conversation, gesturing, fireplace glowing, Victorian study",
         neuro_prompt="Passionate intellectual exchange, conviction burning in their eyes, the electricity of clashing ideas filling the air between them",
         subject_type="interaction",
@@ -101,7 +135,7 @@ TEST_CASES = [
     ),
     TestCase(
         name="debate_tension",
-        image_path="/home/scott/sophia_claude_i2v_debate_preview.png",
+        image_path=source_image("sophia_claude_i2v_debate_preview.png"),
         stock_prompt="Two people talking, subtle movements, warm firelight, period room",
         neuro_prompt="Tension crackling between them, unspoken challenge in their gazes, the air thick with intellectual rivalry",
         subject_type="interaction",
@@ -144,6 +178,8 @@ def build_workflow(prompt: str, negative: str, params: dict, image_path: str, pr
 
 def upload_image(image_path: str) -> bool:
     """Upload image to ComfyUI"""
+    import requests
+
     try:
         with open(image_path, 'rb') as f:
             files = {'image': (os.path.basename(image_path), f, 'image/png')}
@@ -155,6 +191,8 @@ def upload_image(image_path: str) -> bool:
 
 def queue_prompt(workflow: dict) -> Tuple[str, float]:
     """Queue prompt and return (prompt_id, queue_time)"""
+    import requests
+
     start = time.time()
     try:
         resp = requests.post(f"{COMFYUI_SERVER}/prompt", json={"prompt": workflow}, timeout=30)
@@ -226,10 +264,15 @@ def run_benchmark_suite(num_seeds: int = 3, tests_to_run: List[str] = None):
     print(f"Total runs: {len(TEST_CASES) * num_seeds * 2} (stock + neuro)")
     print("=" * 70)
 
-    # Generate seeds using cognitive scaffolding
-    scaffolder = CognitiveSeedScaffolder(base_seed=42424242)
-    scaffold = scaffolder.generate_scaffold(CognitiveFunction.LANGUAGE, num_frames=num_seeds * 10)
-    test_seeds = scaffold.frame_seeds[:num_seeds]
+    # Generate seeds (cognitive scaffolding if the helper is installed,
+    # otherwise the published seed sequence)
+    test_seeds = benchmark_seeds(num_seeds)
+    print(f"Seed source: "
+          f"{'seed_scaffolding' if HAVE_SEED_SCAFFOLDING else 'published sequence'}")
+    print(f"Seeds: {test_seeds}")
+    print(f"Output dir: {OUTPUT_DIR}")
+    print(f"ComfyUI: {COMFYUI_SERVER}")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     results = []
     images_uploaded = set()

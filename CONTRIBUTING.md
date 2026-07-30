@@ -29,6 +29,7 @@ Current entry points include:
 - `code/steps_vs_lpips_sweep.py`
 - `code/neuromorphic_prompt_translator.py`
 - `code/neuromorphic_benchmark_suite.py`
+- `code/grail_config.py`
 
 ### `human_eval/`
 
@@ -63,7 +64,7 @@ If you change claims in `paper/`, update the matching supporting material in `da
 The README currently documents this baseline environment:
 
 ```bash
-pip install torch lpips webp sentence-transformers transformers Pillow matplotlib
+pip install -r requirements.txt
 ```
 
 If your change introduces a new dependency, document why it is needed and update the relevant reproduction instructions.
@@ -73,11 +74,16 @@ If your change introduces a new dependency, document why it is needed and update
 Use the current repository steps as the source of truth:
 
 ```bash
+export GRAIL_BENCHMARK_DIR=/path/to/benchmark_results/outputs
 python code/run_lpips_fvd.py
 python code/compute_clip_image_text.py
 python code/compute_clip_scores.py
 python code/steps_vs_lpips_sweep.py
 ```
+
+Paths and endpoints are resolved in `code/grail_config.py`; see the
+Configuration table in `README.md` for the environment variables. Please do
+not hard-code absolute paths in a script.
 
 Not every contribution needs the full pipeline. Run the narrowest check that matches your change.
 
@@ -89,7 +95,13 @@ For Python-only changes:
 
 ```bash
 python3 -m py_compile code/*.py
+python3 -m pytest tests/ -q
 ```
+
+The test suite needs only `pytest` and `numpy` (no GPU, no model downloads).
+If you change the motion-to-emotion dictionary, update Table 3 in
+`paper/supplementary.tex` in the same PR -- the tests compare them entry by
+entry.
 
 For documentation-only changes:
 

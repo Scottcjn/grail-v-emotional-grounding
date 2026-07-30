@@ -14,12 +14,19 @@ engram formation.
 Discovery: Emergent from NUMA coffer architecture testing (Jan 2026)
 Paper: GRAIL-V Workshop, CVPR 2026
 
+The motion-to-emotion dictionary is the 22-entry table published in the
+supplementary material (Table 3, "Prompt Translator Motion-to-Emotion
+Dictionary").  A handful of extra source terms that are not part of the
+published table are kept separately in EXTENDED_MOTION_TO_EMOTION.
+
 Usage:
     from neuromorphic_prompt_translator import NeuromorphicTranslator
 
     npt = NeuromorphicTranslator()
     emotional_prompt = npt.translate("woman moves head, smiles, blinks")
-    # -> "her eyes brighten with quiet realization, a knowing smile forming"
+    # -> "Woman subtle shift in attention, warmth spreading across their
+    #     expression, moment of processing, with expressive presence,
+    #     natural features preserved"
 """
 
 import re
@@ -53,33 +60,59 @@ class NeuromorphicVocabulary:
     Literal (sparse embedding) -> Emotional (dense embedding)
     """
 
-    # Motion verbs -> Emotional states
+    # Motion verbs -> Emotional states.
+    #
+    # This is the published dictionary: supplementary material Table 3,
+    # "Prompt Translator motion-to-emotion dictionary" (22 entries).  Keep it
+    # byte-identical to the paper -- tests/test_prompt_translator.py parses
+    # paper/supplementary.tex and compares entry by entry.
     MOTION_TO_EMOTION = {
         # Head/face movements
         "head movement": "subtle shift in attention",
-        "head tilt": "contemplative pause",
-        "nods": "quiet acknowledgment dawning",
-        "shakes head": "gentle dismissal crossing their expression",
+        "head tilt": "curiosity awakening",
+        "nods": "quiet agreement settling",
+        "shakes head": "gentle denial forming",
 
         # Eye movements
-        "blinks": "eyes softening with thought",
+        "blinks": "moment of processing",
+        "looks at camera": "awareness sharpening",
+        "stares": "intensity building",
+        "eye movement": "attention drifting",
+        "squints": "scrutiny deepening",
+        "raises eyebrows": "surprise dawning",
+
+        # Mouth/expression
+        "slight smile": "knowing warmth emerging",
+        "frowns": "concern deepening",
+        "speaks": "conviction forming in words",
+        "jaw clenches": "resolve hardening",
+
+        # Body movements
+        "gestures": "expression through motion",
+        "hand movement": "gesture carrying emotional weight",
+        "turns": "attention shifting with purpose",
+        "leans forward": "engagement intensifying",
+        "leans back": "contemplative withdrawal",
+        "moves closer": "warmth drawing near",
+        "moves away": "reluctant distancing",
+        "shoulders tense": "burden settling",
+    }
+
+    # Terms shipped with the reference implementation that are NOT part of the
+    # published table.  They are applied after MOTION_TO_EMOTION, so a
+    # published mapping always wins over an extension with the same key.
+    EXTENDED_MOTION_TO_EMOTION = {
+        # Eye movements
         "blinking": "gaze flickering with inner reflection",
         "looks": "attention drawn with quiet intensity",
-        "stares": "gaze fixed with growing realization",
-        "eye movement": "eyes alive with unspoken thought",
 
         # Mouth/expression
         "smiles": "warmth spreading across their expression",
-        "slight smile": "knowing smile forming",
-        "frowns": "concern shadowing their features",
-        "speaks": "words forming with quiet conviction",
         "mouth moves": "expression shifting with inner dialogue",
 
-        # Body movements
-        "gestures": "hands emphasizing with natural expression",
-        "hand movement": "gesture carrying emotional weight",
+        # Body movements (bare verbs: fallbacks for the multi-word published
+        # forms "moves closer" / "moves away" / "leans forward" / "leans back")
         "moves": "shifting with purposeful energy",
-        "turns": "attention pivoting with dawning interest",
         "leans": "drawing closer with growing engagement",
 
         # Generic
@@ -87,6 +120,34 @@ class NeuromorphicVocabulary:
         "gentle motion": "breathing with quiet life",
         "natural motion": "organic presence and warmth",
     }
+
+    # Source-text rewrites applied BEFORE dictionary lookup.  They fold a
+    # verb + explicit body-part object onto the dictionary key that already
+    # names that body part, so the object is not left stranded next to the
+    # emotional phrase ("nods head" would otherwise translate to
+    # "quiet agreement settling head").
+    SOURCE_ALIASES = [
+        (r"\bmov(?:es|ing)\s+(?:his|her|their|its|the)?\s*head\b", "head movement"),
+        (r"\bmov(?:es|ing)\s+(?:his|her|their|its|the)?\s*hand\b", "hand movement"),
+        (r"\bmov(?:es|ing)\s+(?:his|her|their|its|the)?\s*eyes\b", "eye movement"),
+        (r"\bnods\s+(?:his|her|their|the)?\s*head\b", "nods"),
+        (r"\bshakes\s+(?:his|her|their|the)?\s*head\b", "shakes head"),
+        (r"\bblink(?:s|ing)\s+(?:his|her|their|the)?\s*eyes\b", "blinks"),
+        (r"\bsquints\s+(?:his|her|their|the)?\s*eyes\b", "squints"),
+        (r"\bclenches\s+(?:his|her|their|the)?\s*jaw\b", "jaw clenches"),
+        # "turns to face X" -> "<turns mapping> toward X"
+        (r"\bturns?\s+to\s+face\b", "turns toward"),
+    ]
+
+    @classmethod
+    def all_mappings(cls) -> Dict[str, str]:
+        """Published dictionary plus the unpublished extensions.
+
+        Published entries take precedence on key collisions.
+        """
+        merged = dict(cls.EXTENDED_MOTION_TO_EMOTION)
+        merged.update(cls.MOTION_TO_EMOTION)
+        return merged
 
     # Emotional intensifiers (discovered vocabulary)
     EMOTIONAL_VOCABULARY = {
@@ -129,16 +190,32 @@ class GrammarRules:
     4. Two subjects + "two brains" structure = intense but needs anchoring
     """
 
-    @staticmethod
-    def single_subject_arc(subject: str, emotional_arc: EmotionalArc) -> str:
+    # Prepositions the template supplies itself; a transition that already
+    # ends in one of them would otherwise read "shifting from from X to Y".
+    TRAILING_PREPOSITIONS = ("from", "to", "into", "toward", "towards")
+
+    @classmethod
+    def single_subject_arc(cls, subject: str, emotional_arc: EmotionalArc) -> str:
         """
         Best results: One clear emotional focus.
 
-        Pattern: [Subject]'s [physical] [transition] [emotional state]
+        Pattern: [Subject]'s [physical], [transition] from [initial] to [final]
+
+        The template supplies "from" and "to", so the transition is expected to
+        be a bare verb ("shifting").  Vocabulary entries that carry their own
+        preposition ("shifting from", "giving way to") are accepted and the
+        duplicate preposition is dropped.
         """
+        transition = emotional_arc.transition.strip()
+        for preposition in cls.TRAILING_PREPOSITIONS:
+            suffix = " " + preposition
+            if transition.lower().endswith(suffix):
+                transition = transition[: -len(suffix)].rstrip()
+                break
+
         return (
             f"{subject}'s {emotional_arc.physical_manifestation}, "
-            f"{emotional_arc.transition} from {emotional_arc.initial_state} "
+            f"{transition} from {emotional_arc.initial_state} "
             f"to {emotional_arc.final_state}"
         )
 
@@ -190,6 +267,19 @@ class NeuromorphicTranslator:
     def __init__(self):
         self.vocab = NeuromorphicVocabulary()
         self.grammar = GrammarRules()
+        self._mappings = self.vocab.all_mappings()
+        # One alternation, longest key first, so a single pass replaces every
+        # term: "moves closer" wins over "moves", and no emotional phrase that
+        # was just substituted can be rewritten again by a later key.
+        keys = sorted(self._mappings, key=len, reverse=True)
+        self._motion_re = re.compile(
+            r"\b(?:%s)\b" % "|".join(re.escape(k) for k in keys),
+            flags=re.IGNORECASE,
+        )
+        self._alias_res = [
+            (re.compile(pattern, flags=re.IGNORECASE), replacement)
+            for pattern, replacement in self.vocab.SOURCE_ALIASES
+        ]
 
     def translate(
         self,
@@ -208,21 +298,14 @@ class NeuromorphicTranslator:
         Returns:
             Emotional prompt optimized for neuromorphic generation
         """
-        result = literal_prompt
+        # Step 0: Normalise verb + body-part phrases onto dictionary keys
+        result = self._normalize_source(literal_prompt)
 
-        # Step 1: Replace literal motion with emotional states (longer phrases first)
-        sorted_mappings = sorted(
-            self.vocab.MOTION_TO_EMOTION.items(),
-            key=lambda x: len(x[0]),
-            reverse=True
+        # Step 1: Replace literal motion with emotional states in one pass
+        # (longest key first; substituted text is never re-scanned)
+        result = self._motion_re.sub(
+            lambda m: self._mappings[m.group(0).lower()], result
         )
-        for literal, emotional in sorted_mappings:
-            result = re.sub(
-                rf'\b{re.escape(literal)}\b',
-                emotional,
-                result,
-                flags=re.IGNORECASE
-            )
 
         # Step 2: Clean up awkward constructions
         result = self._clean_awkward_phrases(result)
@@ -239,16 +322,21 @@ class NeuromorphicTranslator:
 
         return result
 
+    def _normalize_source(self, text: str) -> str:
+        """Rewrite verb + body-part phrases onto dictionary keys.
+
+        Runs before substitution, so "nods head" is translated as a single
+        unit instead of leaving "head" stranded after the emotional phrase.
+        """
+        for alias_re, replacement in self._alias_res:
+            text = alias_re.sub(replacement, text)
+        return text
+
     def _clean_awkward_phrases(self, text: str) -> str:
         """Remove awkward constructions from mechanical replacement."""
-        # Fix "X head" -> "X"
-        text = re.sub(r'(dawning|softening|shifting)[,\s]+head\b', r'\1', text)
-        # Fix "X eyes" -> "X"
-        text = re.sub(r'(reflection|thought)[,\s]+eyes\b', r'\1', text)
-        # Fix double adjectives
-        text = re.sub(r'\b(\w+)\s+\1\b', r'\1', text)
-        # Fix "to face" after pivoting
-        text = re.sub(r'pivoting with dawning interest to face', 'turning with quiet attention toward', text)
+        # Fix double adjectives ("subtle head movement" -> "subtle subtle shift
+        # in attention" -> "subtle shift in attention")
+        text = re.sub(r'\b(\w+)\s+\1\b', r'\1', text, flags=re.IGNORECASE)
         # Clean up comma chains
         text = re.sub(r',\s*,', ',', text)
         return text
@@ -278,7 +366,8 @@ class NeuromorphicTranslator:
         arc = EmotionalArc(
             subject=subject,
             initial_state=emotion_start,
-            transition="shifting from",
+            # single_subject_arc supplies "from ... to ..." itself
+            transition="shifting",
             final_state=emotion_end,
             physical_manifestation=physical_cue
         )
@@ -414,16 +503,22 @@ class SalienceAnalyzer:
         prompt_lower = prompt.lower()
         words = set(re.findall(r'\b\w+\b', prompt_lower))
 
+        # Centroid terms match a word by prefix, which covers inflections
+        # ("passionate", "movements") without matching a word that merely
+        # contains the term: "emotional" is not a hit for "motion".
+        def matches(word: str, centroid: List[str]) -> bool:
+            return any(word.startswith(term) for term in centroid)
+
         # Count emotional vocabulary hits
         emotional_hits = sum(
             1 for word in words
-            if any(emo in word for emo in SalienceAnalyzer.EMOTIONAL_CENTROID)
+            if matches(word, SalienceAnalyzer.EMOTIONAL_CENTROID)
         )
 
         # Count literal vocabulary hits
         literal_hits = sum(
             1 for word in words
-            if any(lit in word for lit in SalienceAnalyzer.LITERAL_CENTROID)
+            if matches(word, SalienceAnalyzer.LITERAL_CENTROID)
         )
 
         # Check against discovered vocabulary
@@ -492,7 +587,11 @@ def demo():
               f"steps={literal_salience['recommended_steps']}")
         print(f"    Emotional:  emotional={emotional_salience['emotional_score']}, "
               f"steps={emotional_salience['recommended_steps']}")
-        print(f"    Improvement: {emotional_salience['estimated_step_reduction']} fewer steps")
+        saved = (literal_salience['recommended_steps']
+                 - emotional_salience['recommended_steps'])
+        print(f"    Improvement: {saved} fewer steps "
+              f"({literal_salience['recommended_steps']} -> "
+              f"{emotional_salience['recommended_steps']})")
 
     print("\n" + "-" * 70)
     print("EMOTIONAL ARC CREATION")

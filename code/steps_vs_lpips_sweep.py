@@ -10,15 +10,13 @@ import os
 import sys
 import time
 import uuid
-import requests
-import numpy as np
-from PIL import Image
-import torch
-import lpips
 
-COMFYUI_SERVER = "http://192.168.0.136:8188"
-OUTPUT_DIR = "/home/scott/grail_paper/steps_sweep_renders"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+import numpy as np
+
+import grail_config
+
+COMFYUI_SERVER = grail_config.comfyui_server()
+OUTPUT_DIR = grail_config.sweep_dir()
 
 # Solo portrait arcs only (reviewer asked about convergence for the efficiency claim)
 ARCS = {
@@ -45,9 +43,16 @@ BASE_SHIFT = 0.95
 
 STEP_COUNTS = [10, 15, 20, 24, 30, 40, 50, 60]
 
-# LPIPS
-print("Loading LPIPS model...")
-loss_fn = lpips.LPIPS(net='alex')
+# LPIPS model, loaded on first use by main() (see load_lpips_model)
+loss_fn = None
+
+
+def load_lpips_model():
+    """Load LPIPS lazily: importing this module must not pull in torch."""
+    import lpips
+
+    print("Loading LPIPS model...")
+    return lpips.LPIPS(net='alex')
 
 
 def build_workflow(prompt, steps, seed, prefix):
@@ -71,6 +76,8 @@ def build_workflow(prompt, steps, seed, prefix):
 
 
 def queue_and_wait(workflow, timeout=600):
+    import requests
+
     client_id = str(uuid.uuid4())
     resp = requests.post(f"{COMFYUI_SERVER}/prompt",
                          json={"prompt": workflow, "client_id": client_id}, timeout=30)
@@ -93,6 +100,8 @@ def queue_and_wait(workflow, timeout=600):
 
 
 def download_output(filename, subfolder=""):
+    import requests
+
     url = f"{COMFYUI_SERVER}/view?filename={filename}"
     if subfolder:
         url += f"&subfolder={subfolder}"
@@ -106,6 +115,8 @@ def download_output(filename, subfolder=""):
 
 def load_frames(webp_path, max_frames=24):
     """Load frames from animated WebP."""
+    from PIL import Image
+
     frames = []
     try:
         import webp as webplib
@@ -128,6 +139,8 @@ def load_frames(webp_path, max_frames=24):
 
 def compute_lpips(path_a, path_b):
     """Mean frame-level LPIPS between two animated WebPs."""
+    import torch
+
     frames_a = load_frames(path_a)
     frames_b = load_frames(path_b)
     n = min(len(frames_a), len(frames_b))
@@ -147,6 +160,13 @@ def compute_lpips(path_a, path_b):
 
 
 def main():
+    global loss_fn
+
+    import requests
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    loss_fn = load_lpips_model()
+
     # Check server
     try:
         r = requests.get(f"{COMFYUI_SERVER}/system_stats", timeout=5)
@@ -245,7 +265,9 @@ def main():
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
 
-    fig_path = "/home/scott/grail_paper/paper_draft/figures/fig_steps_vs_lpips.pdf"
+    figures_dir = grail_config.figures_dir()
+    os.makedirs(figures_dir, exist_ok=True)
+    fig_path = os.path.join(figures_dir, "fig_steps_vs_lpips.pdf")
     plt.savefig(fig_path, dpi=300, bbox_inches='tight')
     plt.savefig(fig_path.replace('.pdf', '.png'), dpi=150, bbox_inches='tight')
     print(f"Figure saved: {fig_path}")

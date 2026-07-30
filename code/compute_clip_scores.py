@@ -18,7 +18,8 @@ import sys
 from itertools import combinations
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+
+import grail_config
 
 # ---------------------------------------------------------------------------
 # Prompt pairs: STOCK (literal) vs NEURO (emotional/narrative)
@@ -127,6 +128,10 @@ def tokenize_words(text: str) -> set[str]:
 # ---------------------------------------------------------------------------
 
 def main():
+    # Imported here so the helpers above stay importable (and testable)
+    # without sentence-transformers installed.
+    from sentence_transformers import SentenceTransformer
+
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     print(f"Loading model: {model_name}")
     model = SentenceTransformer(model_name, device="cpu")
@@ -257,7 +262,8 @@ def main():
     }
 
     # --- Write JSON --------------------------------------------------------
-    out_path = os.path.join(os.path.dirname(__file__), "clip_text_similarity.json")
+    out_path = grail_config.data_file("clip_text_similarity.json")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"\nResults saved to: {out_path}")

@@ -35,7 +35,8 @@ Emotional prompts ("eyes brighten with quiet realization") achieve the same visu
 │   ├── compute_clip_image_text.py         # CLIP image-text similarity
 │   ├── run_lpips_fvd.py                   # LPIPS computation
 │   ├── steps_vs_lpips_sweep.py            # Convergence analysis
-│   └── neuromorphic_benchmark_suite.py    # Full benchmark pipeline
+│   ├── neuromorphic_benchmark_suite.py    # Full benchmark pipeline
+│   └── grail_config.py                    # Paths / endpoints (env-overridable)
 ├── data/
 │   ├── lpips_results.json                 # Frame-level LPIPS for all 35 pairs
 │   ├── clip_image_text_scores.json        # CLIP ViT-B/32 scores
@@ -45,6 +46,7 @@ Emotional prompts ("eyes brighten with quiet realization") achieve the same visu
 │   ├── evaluation_form.html               # Self-contained 2AFC evaluation form
 │   ├── eval_pairs.json                    # All prompt conditions per arc
 │   └── README.md                          # Evaluation protocol
+├── tests/                                 # pytest suite for code/
 ├── figures/                               # Paper figures
 └── paper/
     ├── grail_v_paper.tex                  # Main paper (LaTeX)
@@ -53,37 +55,76 @@ Emotional prompts ("eyes brighten with quiet realization") achieve the same visu
 
 ## Prompt Translator
 
-The Prompt Translator automatically converts literal motion descriptors to emotionally-grounded prompts:
+The Prompt Translator automatically converts literal motion descriptors to emotionally-grounded prompts. The full 22-entry dictionary is Table 3 of `paper/supplementary.tex`; a sample:
 
 | Literal Input | Emotional Output |
 |--------------|-----------------|
 | head movement | subtle shift in attention |
-| slight smile | knowing smile forming |
+| slight smile | knowing warmth emerging |
 | hand movement | gesture carrying emotional weight |
 | stares | intensity building |
 | frowns | concern deepening |
 
+```bash
+python code/neuromorphic_prompt_translator.py   # demo: translation + salience
+```
+
 ## Requirements
 
 ```bash
-pip install torch lpips webp sentence-transformers transformers Pillow matplotlib
+pip install -r requirements.txt
 ```
+
+## Configuration
+
+The analysis scripts take every path and endpoint from `code/grail_config.py`.
+Defaults are repo-relative; override them with environment variables:
+
+| Variable | Default | Used by |
+|----------|---------|---------|
+| `GRAIL_BENCHMARK_DIR` | `benchmark_results/outputs/` | LPIPS + CLIP image-text |
+| `GRAIL_DATA_DIR` | `data/` | all metric outputs |
+| `GRAIL_FIGURES_DIR` | `figures/` | convergence sweep figure |
+| `GRAIL_SWEEP_DIR` | `steps_sweep_renders/` | convergence sweep renders |
+| `GRAIL_SOURCE_IMAGE_DIR` | `source_images/` | benchmark suite |
+| `GRAIL_COMFYUI_SERVER` | `http://127.0.0.1:8188` | render pipelines |
+| `GRAIL_CLIP_INDEX` | `00001` | which clip per seed is measured |
 
 ## Reproduction
 
 ```bash
-# 1. Compute LPIPS between STOCK/NEURO render pairs
+# 0. Point the scripts at your rendered clips
+export GRAIL_BENCHMARK_DIR=/path/to/benchmark_results/outputs
+
+# 1. Compute LPIPS between STOCK/NEURO render pairs   -> data/lpips_results.json
 python code/run_lpips_fvd.py
 
-# 2. Compute CLIP image-text alignment
+# 2. Compute CLIP image-text alignment      -> data/clip_image_text_scores.json
 python code/compute_clip_image_text.py
 
-# 3. Analyze embedding topology
+# 3. Analyze embedding topology              -> data/clip_text_similarity.json
 python code/compute_clip_scores.py
 
 # 4. Run convergence sweep (requires ComfyUI + LTX-2)
-python code/steps_vs_lpips_sweep.py
+GRAIL_COMFYUI_SERVER=http://your-comfyui:8188 python code/steps_vs_lpips_sweep.py
 ```
+
+Rendering the clips in step 0 is `python code/neuromorphic_benchmark_suite.py full`
+(7 arcs x 5 seeds x STOCK/NEURO), which needs ComfyUI with LTX-2 and the source
+images in `GRAIL_SOURCE_IMAGE_DIR`.
+
+## Tests
+
+```bash
+pip install pytest
+python -m pytest tests/ -q
+```
+
+The suite checks the analysis code against the published artifacts: the
+motion-to-emotion dictionary is compared entry by entry with Table 3 of
+`paper/supplementary.tex`, and the benchmark seeds, arc names and render
+filenames are compared with `data/clip_image_text_scores.json`. No GPU,
+network or model download is required.
 
 ## Human Evaluation
 
