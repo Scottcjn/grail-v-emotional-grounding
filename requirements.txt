@@ -1,0 +1,16 @@
+# Analysis dependencies for code/
+numpy
+Pillow
+torch
+lpips                 # run_lpips_fvd.py, steps_vs_lpips_sweep.py
+transformers          # compute_clip_image_text.py (CLIP ViT-B/32)
+sentence-transformers # compute_clip_scores.py (all-MiniLM-L6-v2)
+matplotlib            # steps_vs_lpips_sweep.py figure
+requests              # ComfyUI render pipelines
+
+# Optional: faster animated-WebP decoding. Both LPIPS scripts fall back to
+# Pillow when it is not installed.
+# webp
+
+# Tests only
+# pytest

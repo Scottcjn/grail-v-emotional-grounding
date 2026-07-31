@@ -1,39 +1,80 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 """
-LPIPS and FVD Metrics for Neuromorphic Benchmark
-=================================================
-Computes perceptual quality metrics between STOCK and NEURO outputs.
+LPIPS Metrics for Neuromorphic Benchmark
+========================================
+Computes frame-level LPIPS between the STOCK and NEURO outputs of each
+matched pair.  FVD is not computed here (the paper reports LPIPS and file
+size only); the module name is kept because README.md and CONTRIBUTING.md
+reference it as an entry point.
+
+Paths come from grail_config (GRAIL_BENCHMARK_DIR / GRAIL_DATA_DIR).
 """
 
 import os
 import glob
 import json
-import numpy as np
-from PIL import Image
-import torch
-import lpips
 from collections import defaultdict
-import webp
 
-BENCHMARK_DIR = "/home/scott/grail_paper/benchmark_results/outputs"
-RESULTS_FILE = "/home/scott/grail_paper/metrics/lpips_results.json"
+import numpy as np
 
-# Initialize LPIPS model
-print("Loading LPIPS model (AlexNet)...")
-loss_fn = lpips.LPIPS(net='alex')
-if torch.cuda.is_available():
-    loss_fn = loss_fn.cuda()
-    print("Using CUDA")
-else:
-    print("Using CPU")
+import grail_config
+
+
+def sample_std(values) -> float:
+    """Sample standard deviation (ddof=1), as reported throughout the paper.
+
+    Aggregates across seeds/pairs are estimates from a *sample* of seeds, so
+    they take Bessel's correction.  ``np.std`` defaults to ddof=0, which
+    reported a systematically smaller spread than the published figures: the
+    committed solo-portrait pairs give 0.004776 at ddof=0 versus the paper's
+    s = 0.005 (0.004944), and re-deriving the headline one-sample t from the
+    released artifact then yields -72.03 instead of the published -69.59.
+    Frame-level spread inside a single pair stays ddof=0: those 24 frames are
+    the complete set of measurements for that clip, not a sample of it.
+    """
+    values = np.asarray(values, dtype=float)
+    if values.size < 2:
+        return 0.0
+    return float(np.std(values, ddof=1))
+
+
+BENCHMARK_DIR = grail_config.benchmark_dir()
+RESULTS_FILE = grail_config.data_file("lpips_results.json")
+
+# Renders are saved by ComfyUI as <prefix>_<clip index>_.webp.  Only the first
+# clip of each seed is measured, matching compute_clip_image_text.py.
+CLIP_INDEX = os.environ.get("GRAIL_CLIP_INDEX", "00001")
+
+
+def load_lpips_model():
+    """Load the LPIPS network.
+
+    Imported lazily so the module can be imported (and its pair-matching
+    logic tested) without torch/lpips installed and without downloading
+    AlexNet weights.
+    """
+    import torch
+    import lpips
+
+    print("Loading LPIPS model (AlexNet)...")
+    model = lpips.LPIPS(net='alex')
+    if torch.cuda.is_available():
+        model = model.cuda()
+        print("Using CUDA")
+    else:
+        print("Using CPU")
+    return model
 
 
 def load_webp_frames(webp_path, max_frames=24):
     """Load frames from animated WEBP"""
+    from PIL import Image
+
     frames = []
     try:
         # Use webp library for animated webp
+        import webp
         webp_data = webp.load_images(webp_path)
         for i, frame in enumerate(webp_data):
             if i >= max_frames:
@@ -64,6 +105,9 @@ def load_webp_frames(webp_path, max_frames=24):
 
 def frames_to_tensor(frames):
     """Convert list of PIL images to tensor for LPIPS"""
+    from PIL import Image
+    import torch
+
     tensors = []
     for frame in frames:
         # Resize to 256x256 for LPIPS
@@ -77,8 +121,13 @@ def frames_to_tensor(frames):
     return torch.stack(tensors)  # [N, C, H, W]
 
 
-def compute_lpips_pair(stock_path, neuro_path):
+def compute_lpips_pair(stock_path, neuro_path, loss_fn=None):
     """Compute LPIPS between STOCK and NEURO video pair"""
+    import torch
+
+    if loss_fn is None:
+        loss_fn = load_lpips_model()
+
     stock_frames = load_webp_frames(stock_path)
     neuro_frames = load_webp_frames(neuro_path)
 
@@ -113,28 +162,47 @@ def compute_lpips_pair(stock_path, neuro_path):
     }
 
 
-def find_pairs():
-    """Find STOCK/NEURO pairs in benchmark outputs"""
-    pairs = defaultdict(dict)
+def find_pairs(benchmark_dir=None, clip_index=None):
+    """Find STOCK/NEURO pairs in benchmark outputs.
 
-    for f in glob.glob(os.path.join(BENCHMARK_DIR, "BENCH_*.webp")):
+    Only the clip whose index matches ``clip_index`` is considered.  A seed
+    rendered as several clips would otherwise collapse onto one dict key and
+    silently keep whichever file glob() happened to return last, so the two
+    analyses in this repo could measure different renders.
+    """
+    benchmark_dir = benchmark_dir or BENCHMARK_DIR
+    clip_index = clip_index or CLIP_INDEX
+    pairs = defaultdict(dict)
+    skipped_other_clips = 0
+
+    for f in sorted(glob.glob(os.path.join(benchmark_dir, "BENCH_*.webp"))):
         basename = os.path.basename(f)
-        # Parse: BENCH_<test_name>_<TYPE>_s<seed>_00001_.webp
+        # Parse: BENCH_<test_name>_<TYPE>_s<seed>_<clip index>_.webp
         parts = basename.replace(".webp", "").split("_")
 
+        if f"_{clip_index}_" not in basename:
+            skipped_other_clips += 1
+            continue
+
         # Find STOCK or NEURO
-        if "STOCK" in parts:
-            idx = parts.index("STOCK")
+        for condition, slot in (("STOCK", "stock"), ("NEURO", "neuro")):
+            if condition not in parts:
+                continue
+            idx = parts.index(condition)
             test_name = "_".join(parts[1:idx])
             seed = parts[idx + 1]
             key = f"{test_name}_{seed}"
-            pairs[key]["stock"] = f
-        elif "NEURO" in parts:
-            idx = parts.index("NEURO")
-            test_name = "_".join(parts[1:idx])
-            seed = parts[idx + 1]
-            key = f"{test_name}_{seed}"
-            pairs[key]["neuro"] = f
+            if slot in pairs[key]:
+                print(f"  WARN: duplicate {condition} render for {key}: "
+                      f"keeping {os.path.basename(pairs[key][slot])}, "
+                      f"ignoring {basename}")
+                break
+            pairs[key][slot] = f
+            break
+
+    if skipped_other_clips:
+        print(f"  Skipped {skipped_other_clips} file(s) that are not clip "
+              f"_{clip_index}_ (set GRAIL_CLIP_INDEX to change)")
 
     # Filter to complete pairs
     complete = {k: v for k, v in pairs.items() if "stock" in v and "neuro" in v}
@@ -142,9 +210,17 @@ def find_pairs():
 
 
 def main():
+    grail_config.require_dir(BENCHMARK_DIR, "GRAIL_BENCHMARK_DIR")
+
     print("Finding STOCK/NEURO pairs...")
     pairs = find_pairs()
     print(f"Found {len(pairs)} complete pairs")
+    if not pairs:
+        raise SystemExit(
+            f"ERROR: no complete STOCK/NEURO pairs in {BENCHMARK_DIR}"
+        )
+
+    loss_fn = load_lpips_model()
 
     results = {}
     by_arc = defaultdict(list)
@@ -152,7 +228,7 @@ def main():
     for i, (key, paths) in enumerate(sorted(pairs.items())):
         print(f"\n[{i+1}/{len(pairs)}] Processing {key}...")
 
-        lpips_result = compute_lpips_pair(paths["stock"], paths["neuro"])
+        lpips_result = compute_lpips_pair(paths["stock"], paths["neuro"], loss_fn)
 
         if lpips_result:
             results[key] = lpips_result
@@ -168,25 +244,29 @@ def main():
     print("=" * 60)
 
     all_means = [r["mean"] for r in results.values()]
-    print(f"\nOverall LPIPS: {np.mean(all_means):.4f} (+/- {np.std(all_means):.4f})")
+    print(f"\nOverall LPIPS: {np.mean(all_means):.4f} (+/- {sample_std(all_means):.4f})")
     print(f"  Range: {np.min(all_means):.4f} - {np.max(all_means):.4f}")
 
     print("\nBy Test Case:")
     for arc, scores in sorted(by_arc.items()):
-        print(f"  {arc}: {np.mean(scores):.4f} (+/- {np.std(scores):.4f})")
+        print(f"  {arc}: {np.mean(scores):.4f} (+/- {sample_std(scores):.4f})")
 
     # Save results
     output = {
         "summary": {
             "overall_mean": float(np.mean(all_means)),
-            "overall_std": float(np.std(all_means)),
+            "overall_std": sample_std(all_means),
+            "std_ddof": 1,
             "n_pairs": len(results)
         },
-        "by_test": {arc: {"mean": float(np.mean(scores)), "std": float(np.std(scores))}
+        "by_test": {arc: {"mean": float(np.mean(scores)),
+                          "std": sample_std(scores),
+                          "n": len(scores)}
                     for arc, scores in by_arc.items()},
         "per_pair": results
     }
 
+    os.makedirs(os.path.dirname(RESULTS_FILE), exist_ok=True)
     with open(RESULTS_FILE, "w") as f:
         json.dump(output, f, indent=2)
 

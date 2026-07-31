@@ -17,9 +17,8 @@ import sys
 from collections import defaultdict
 
 import numpy as np
-import torch
-from PIL import Image
-from transformers import CLIPModel, CLIPProcessor
+
+import grail_config
 
 # ---------------------------------------------------------------------------
 # Prompt pairs (duplicated from compute_clip_scores.py for self-containment)
@@ -103,9 +102,12 @@ PROMPT_PAIRS = {
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-OUTPUTS_DIR = "/home/scott/grail_paper/benchmark_results/outputs"
-METRICS_DIR = os.path.dirname(os.path.abspath(__file__))
-OUT_JSON = os.path.join(METRICS_DIR, "clip_image_text_scores.json")
+OUTPUTS_DIR = grail_config.benchmark_dir()
+OUT_JSON = grail_config.data_file("clip_image_text_scores.json")
+
+# Only the first clip of each seed is scored; run_lpips_fvd.py uses the same
+# index so both analyses measure the same renders.
+CLIP_INDEX = os.environ.get("GRAIL_CLIP_INDEX", "00001")
 
 # Filename pattern: BENCH_{arc}_{condition}_s{seed}_00001_.webp
 # arc may contain underscores (e.g. sophia_realization, elyan_claude_focus)
@@ -113,12 +115,13 @@ OUT_JSON = os.path.join(METRICS_DIR, "clip_image_text_scores.json")
 KNOWN_ARCS = list(PROMPT_PAIRS.keys())
 
 
-def parse_filename(fname: str):
+def parse_filename(fname: str, clip_index: str = None):
     """Parse a benchmark WebP filename into (arc, condition, seed) or None."""
+    clip_index = clip_index or CLIP_INDEX
     if not fname.startswith("BENCH_") or not fname.endswith(".webp"):
         return None
-    # Only use _00001_ clips (first clip per seed)
-    if "_00001_" not in fname:
+    # Only use the configured clip index (first clip per seed)
+    if f"_{clip_index}_" not in fname:
         return None
     # Try matching each known arc name
     for arc in sorted(KNOWN_ARCS, key=len, reverse=True):
@@ -126,14 +129,16 @@ def parse_filename(fname: str):
         if fname.startswith(prefix):
             rest = fname[len(prefix):]
             # rest should be like: STOCK_s42424242_00001_.webp
-            m = re.match(r"(STOCK|NEURO)_s(\d+)_00001_\.webp$", rest)
+            m = re.match(rf"(STOCK|NEURO)_s(\d+)_{clip_index}_\.webp$", rest)
             if m:
                 return arc, m.group(1), m.group(2)
     return None
 
 
-def extract_first_frame(path: str) -> Image.Image:
+def extract_first_frame(path: str):
     """Open an animated WebP and return the first frame as RGB PIL Image."""
+    from PIL import Image
+
     img = Image.open(path)
     img.seek(0)
     return img.convert("RGB")
@@ -141,8 +146,14 @@ def extract_first_frame(path: str) -> Image.Image:
 
 def main():
     # ------------------------------------------------------------------
-    # Load CLIP
+    # Load CLIP (imported here so the filename parsing above stays
+    # importable without torch/transformers installed)
     # ------------------------------------------------------------------
+    import torch
+    from transformers import CLIPModel, CLIPProcessor
+
+    grail_config.require_dir(OUTPUTS_DIR, "GRAIL_BENCHMARK_DIR")
+
     model_name = "openai/clip-vit-base-patch32"
     print(f"Loading CLIP model: {model_name}")
     processor = CLIPProcessor.from_pretrained(model_name)
@@ -251,6 +262,7 @@ def main():
         ],
     }
 
+    os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
     with open(OUT_JSON, "w") as f:
         json.dump(output, f, indent=2)
     print(f"\nResults saved to: {OUT_JSON}")

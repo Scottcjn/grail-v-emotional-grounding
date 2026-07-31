@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local render/scratch directories (see code/grail_config.py)
+/benchmark_results/
+/steps_sweep_renders/
+/source_images/

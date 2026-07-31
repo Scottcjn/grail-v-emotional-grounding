@@ -17,17 +17,55 @@ Goal: Demonstrate 20% efficiency gain with statistical significance.
 import os
 import json
 import time
-import requests
+from collections import Counter
 from dataclasses import dataclass
 from typing import List, Dict, Tuple
 from datetime import datetime
-from seed_scaffolding import CognitiveSeedScaffolder, CognitiveFunction
 
-COMFYUI_SERVER = "http://192.168.0.133:8188"
-OUTPUT_DIR = "/home/scott/grail_paper/benchmark_results"
+import grail_config
+from neuromorphic_prompt_translator import CognitiveFunction
 
-# Ensure output directory exists
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+try:
+    # Author's private helper; not part of this repository.
+    from seed_scaffolding import CognitiveSeedScaffolder
+    HAVE_SEED_SCAFFOLDING = True
+except ModuleNotFoundError:
+    CognitiveSeedScaffolder = None
+    HAVE_SEED_SCAFFOLDING = False
+
+COMFYUI_SERVER = grail_config.comfyui_server()
+# The manifest belongs next to the renders it describes, i.e. inside
+# GRAIL_BENCHMARK_DIR -- which is also where run_lpips_fvd.py and
+# compute_clip_image_text.py look for BENCH_*.webp.
+OUTPUT_DIR = grail_config.benchmark_dir()
+
+# Seed sequence of the published runs.  Every filename in
+# data/clip_image_text_scores.json carries its seed, and the five seeds used
+# there are BASE_SEED + 1000 * i, i = 0..4.  Used when seed_scaffolding is
+# unavailable so the released suite reproduces the published seeds.
+BASE_SEED = 42424242
+SEED_STRIDE = 1000
+
+
+def published_seeds(num_seeds: int, base_seed: int = BASE_SEED) -> List[int]:
+    """Deterministic seeds matching the renders behind the paper's numbers."""
+    return [base_seed + SEED_STRIDE * i for i in range(num_seeds)]
+
+
+def source_image(filename: str) -> str:
+    """Absolute path of a benchmark source image (GRAIL_SOURCE_IMAGE_DIR)."""
+    return os.path.join(grail_config.source_image_dir(), filename)
+
+
+def benchmark_seeds(num_seeds: int, base_seed: int = BASE_SEED) -> List[int]:
+    """Scaffolded seeds when available, otherwise the published sequence."""
+    if HAVE_SEED_SCAFFOLDING:
+        scaffolder = CognitiveSeedScaffolder(base_seed=base_seed)
+        scaffold = scaffolder.generate_scaffold(
+            CognitiveFunction.LANGUAGE, num_frames=num_seeds * 10
+        )
+        return list(scaffold.frame_seeds[:num_seeds])
+    return published_seeds(num_seeds, base_seed)
 
 
 @dataclass
@@ -49,7 +87,7 @@ TEST_CASES = [
     # --- SOPHIA VICTORIAN (Woman, Portrait) ---
     TestCase(
         name="sophia_realization",
-        image_path="/home/scott/sophia_victorian_frame.png",
+        image_path=source_image("sophia_victorian_frame.png"),
         stock_prompt="Victorian woman portrait, subtle head movement, slight smile, blinking eyes, warm lighting",
         neuro_prompt="The young woman's eyes brighten with quiet realization, a knowing smile forming as inspiration takes hold, warmth spreading across her expression",
         subject_type="woman",
@@ -57,7 +95,7 @@ TEST_CASES = [
     ),
     TestCase(
         name="sophia_contemplation",
-        image_path="/home/scott/sophia_victorian_frame.png",
+        image_path=source_image("sophia_victorian_frame.png"),
         stock_prompt="Victorian woman portrait, looking thoughtful, gentle movements, soft lighting",
         neuro_prompt="Her gaze turns inward with deep contemplation, a subtle shift from curiosity to understanding, quiet wisdom settling in her features",
         subject_type="woman",
@@ -65,7 +103,7 @@ TEST_CASES = [
     ),
     TestCase(
         name="sophia_determination",
-        image_path="/home/scott/sophia_victorian_frame.png",
+        image_path=source_image("sophia_victorian_frame.png"),
         stock_prompt="Victorian woman portrait, serious expression, focused look, slight movement",
         neuro_prompt="Quiet determination hardens in her eyes, jaw setting with newfound resolve, inner fire building behind composed exterior",
         subject_type="woman",
@@ -75,7 +113,7 @@ TEST_CASES = [
     # --- ELYAN LABS (Two characters - test sequential arcs) ---
     TestCase(
         name="elyan_sophia_focus",
-        image_path="/home/scott/grail_paper/sophia_elyan_labs.png",
+        image_path=source_image("sophia_elyan_labs.png"),
         stock_prompt="Victorian exhibition, woman working on machine, man watching, gaslight flickering",
         neuro_prompt="The young woman works with fierce concentration, confident hands moving with purpose, quiet authority radiating as she masters the brass machinery",
         subject_type="woman_focus",
@@ -83,7 +121,7 @@ TEST_CASES = [
     ),
     TestCase(
         name="elyan_claude_focus",
-        image_path="/home/scott/grail_paper/sophia_elyan_labs.png",
+        image_path=source_image("sophia_elyan_labs.png"),
         stock_prompt="Victorian exhibition, older man gesturing, woman at machine, warm lighting",
         neuro_prompt="The older gentleman's skepticism softens to grudging respect, pride wounded but giving way to reluctant admiration",
         subject_type="man_focus",
@@ -93,7 +131,7 @@ TEST_CASES = [
     # --- DEBATE SCENE (Dynamic interaction) ---
     TestCase(
         name="debate_passion",
-        image_path="/home/scott/sophia_claude_i2v_debate_preview.png",
+        image_path=source_image("sophia_claude_i2v_debate_preview.png"),
         stock_prompt="Two people in conversation, gesturing, fireplace glowing, Victorian study",
         neuro_prompt="Passionate intellectual exchange, conviction burning in their eyes, the electricity of clashing ideas filling the air between them",
         subject_type="interaction",
@@ -101,7 +139,7 @@ TEST_CASES = [
     ),
     TestCase(
         name="debate_tension",
-        image_path="/home/scott/sophia_claude_i2v_debate_preview.png",
+        image_path=source_image("sophia_claude_i2v_debate_preview.png"),
         stock_prompt="Two people talking, subtle movements, warm firelight, period room",
         neuro_prompt="Tension crackling between them, unspoken challenge in their gazes, the air thick with intellectual rivalry",
         subject_type="interaction",
@@ -142,26 +180,90 @@ def build_workflow(prompt: str, negative: str, params: dict, image_path: str, pr
     }
 
 
-def upload_image(image_path: str) -> bool:
-    """Upload image to ComfyUI"""
+def upload_image(image_path: str) -> Tuple[bool, str]:
+    """Upload image to ComfyUI.  Returns (ok, detail)."""
+    import requests
+
     try:
         with open(image_path, 'rb') as f:
             files = {'image': (os.path.basename(image_path), f, 'image/png')}
             resp = requests.post(f"{COMFYUI_SERVER}/upload/image", files=files, timeout=30)
-            return resp.status_code == 200
-    except:
-        return False
+    except OSError as e:
+        return False, f"cannot read {image_path}: {e}"
+    except Exception as e:                      # requests.RequestException et al.
+        return False, f"{type(e).__name__}: {e}"
+
+    if resp.status_code != 200:
+        return False, f"HTTP {resp.status_code}: {resp.text[:200]}"
+    return True, ""
 
 
-def queue_prompt(workflow: dict) -> Tuple[str, float]:
-    """Queue prompt and return (prompt_id, queue_time)"""
+def describe_queue_error(status_code: int, payload) -> str:
+    """Turn a ComfyUI /prompt rejection into one actionable line.
+
+    ComfyUI answers a rejected job with HTTP 400 and a body carrying both a
+    summary (``error``) and the offending inputs (``node_errors``); the node
+    detail is what tells the user *which* checkpoint or image is missing, so
+    it is worth surfacing rather than discarding.
+    """
+    if not isinstance(payload, dict):
+        return f"HTTP {status_code}: {str(payload)[:200]}"
+
+    error = payload.get("error")
+    if isinstance(error, dict):
+        head = error.get("message") or error.get("type") or "rejected"
+        if error.get("details"):
+            head = f"{head} ({error['details']})"
+    elif error:
+        head = str(error)
+    else:
+        head = f"HTTP {status_code}"
+
+    details = []
+    node_errors = payload.get("node_errors")
+    if isinstance(node_errors, dict):
+        for node_id, node in node_errors.items():
+            for err in (node or {}).get("errors", []) if isinstance(node, dict) else []:
+                details.append(
+                    f"node {node_id}: {err.get('message', '')} {err.get('details', '')}".strip()
+                )
+    if details:
+        head = f"{head}; " + "; ".join(details[:3])
+    return head
+
+
+def queue_prompt(workflow: dict) -> Tuple[str, float, str]:
+    """Queue a prompt.
+
+    Returns ``(prompt_id, queue_time, error)``.  ``prompt_id`` is non-empty
+    only when ComfyUI actually accepted the job; on any failure ``error``
+    carries the reason and ``prompt_id`` stays empty.  The error text is kept
+    out of the prompt_id slot on purpose: it used to be returned *as* the
+    prompt id, so a manifest of failures was indistinguishable from a
+    manifest of queued renders.
+    """
+    import requests
+
     start = time.time()
     try:
         resp = requests.post(f"{COMFYUI_SERVER}/prompt", json={"prompt": workflow}, timeout=30)
-        data = resp.json()
-        return data.get('prompt_id', ''), time.time() - start
     except Exception as e:
-        return str(e), 0
+        return "", time.time() - start, f"{type(e).__name__}: {e}"
+
+    elapsed = time.time() - start
+    try:
+        data = resp.json()
+    except ValueError:
+        return "", elapsed, f"HTTP {resp.status_code}: non-JSON response"
+
+    if resp.status_code != 200:
+        return "", elapsed, describe_queue_error(resp.status_code, data)
+
+    prompt_id = (data or {}).get("prompt_id") or ""
+    if not prompt_id:
+        # 200 with no prompt_id still means nothing was scheduled.
+        return "", elapsed, describe_queue_error(resp.status_code, data)
+    return prompt_id, elapsed, ""
 
 
 def run_single_test(test: TestCase, seed: int, test_type: str) -> dict:
@@ -199,7 +301,7 @@ def run_single_test(test: TestCase, seed: int, test_type: str) -> dict:
         prefix = f"BENCH_{test.name}_NEURO_s{seed}"
 
     workflow = build_workflow(prompt, negative, params, test.image_path, prefix)
-    prompt_id, queue_time = queue_prompt(workflow)
+    prompt_id, queue_time, error = queue_prompt(workflow)
 
     return {
         "test_name": test.name,
@@ -207,6 +309,8 @@ def run_single_test(test: TestCase, seed: int, test_type: str) -> dict:
         "seed": seed,
         "steps": params["steps"],
         "prompt_id": prompt_id,
+        "queued": bool(prompt_id),
+        "error": error,
         "queue_time": queue_time,
         "prefix": prefix,
         "subject_type": test.subject_type,
@@ -226,13 +330,19 @@ def run_benchmark_suite(num_seeds: int = 3, tests_to_run: List[str] = None):
     print(f"Total runs: {len(TEST_CASES) * num_seeds * 2} (stock + neuro)")
     print("=" * 70)
 
-    # Generate seeds using cognitive scaffolding
-    scaffolder = CognitiveSeedScaffolder(base_seed=42424242)
-    scaffold = scaffolder.generate_scaffold(CognitiveFunction.LANGUAGE, num_frames=num_seeds * 10)
-    test_seeds = scaffold.frame_seeds[:num_seeds]
+    # Generate seeds (cognitive scaffolding if the helper is installed,
+    # otherwise the published seed sequence)
+    test_seeds = benchmark_seeds(num_seeds)
+    print(f"Seed source: "
+          f"{'seed_scaffolding' if HAVE_SEED_SCAFFOLDING else 'published sequence'}")
+    print(f"Seeds: {test_seeds}")
+    print(f"Output dir: {OUTPUT_DIR}")
+    print(f"ComfyUI: {COMFYUI_SERVER}")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     results = []
     images_uploaded = set()
+    skipped_tests = []
 
     for i, test in enumerate(TEST_CASES):
         if tests_to_run and test.name not in tests_to_run:
@@ -244,26 +354,29 @@ def run_benchmark_suite(num_seeds: int = 3, tests_to_run: List[str] = None):
         # Upload image if needed
         if test.image_path not in images_uploaded:
             print(f"    Uploading: {os.path.basename(test.image_path)}...")
-            if upload_image(test.image_path):
+            ok, detail = upload_image(test.image_path)
+            if ok:
                 images_uploaded.add(test.image_path)
                 print("    Done")
             else:
-                print("    FAILED - skipping test")
+                print(f"    UPLOAD FAILED - skipping test: {detail}")
+                skipped_tests.append((test.name, detail))
                 continue
 
         # Run tests for each seed
         for seed_idx, seed in enumerate(test_seeds):
-            # Stock test
-            print(f"    [{seed_idx+1}/{num_seeds}] STOCK (30 steps, seed={seed})...", end=" ")
-            stock_result = run_single_test(test, seed, "stock")
-            results.append(stock_result)
-            print(f"queued: {stock_result['prompt_id'][:8]}...")
+            for test_type, steps in (("stock", 30), ("neuro", 24)):
+                print(f"    [{seed_idx+1}/{num_seeds}] {test_type.upper()} "
+                      f"({steps} steps, seed={seed})...", end=" ")
+                result = run_single_test(test, seed, test_type)
+                results.append(result)
+                if result["queued"]:
+                    print(f"queued: {result['prompt_id'][:8]}...")
+                else:
+                    print(f"NOT QUEUED: {result['error']}")
 
-            # Neuro test
-            print(f"    [{seed_idx+1}/{num_seeds}] NEURO (24 steps, seed={seed})...", end=" ")
-            neuro_result = run_single_test(test, seed, "neuro")
-            results.append(neuro_result)
-            print(f"queued: {neuro_result['prompt_id'][:8]}...")
+    queued = [r for r in results if r["queued"]]
+    failed = [r for r in results if not r["queued"]]
 
     # Save results manifest
     manifest = {
@@ -271,6 +384,9 @@ def run_benchmark_suite(num_seeds: int = 3, tests_to_run: List[str] = None):
         "num_seeds": num_seeds,
         "test_cases": len(TEST_CASES),
         "total_runs": len(results),
+        "queued_runs": len(queued),
+        "failed_runs": len(failed),
+        "skipped_tests": [{"test_name": n, "error": d} for n, d in skipped_tests],
         "seeds_used": test_seeds,
         "results": results
     }
@@ -280,16 +396,36 @@ def run_benchmark_suite(num_seeds: int = 3, tests_to_run: List[str] = None):
         json.dump(manifest, f, indent=2)
 
     print("\n" + "=" * 70)
-    print("BENCHMARK QUEUED")
+    print("BENCHMARK QUEUED" if queued and not failed else "BENCHMARK INCOMPLETE")
     print("=" * 70)
-    print(f"Total tests: {len(results)}")
-    print(f"Stock tests: {len([r for r in results if r['test_type'] == 'stock'])}")
-    print(f"Neuro tests: {len([r for r in results if r['test_type'] == 'neuro'])}")
+    print(f"Queued : {len(queued)}/{len(results)} "
+          f"(stock {len([r for r in queued if r['test_type'] == 'stock'])}, "
+          f"neuro {len([r for r in queued if r['test_type'] == 'neuro'])})")
+    if skipped_tests:
+        print(f"Skipped: {len(skipped_tests)} test case(s) whose source image "
+              f"could not be uploaded")
+        for name, detail in skipped_tests:
+            print(f"         - {name}: {detail}")
+    if failed:
+        print(f"REJECTED: {len(failed)} run(s) -- ComfyUI did not schedule them")
+        # One line per distinct reason: 70 identical "checkpoint missing"
+        # lines say no more than one does.
+        reasons = Counter(r["error"] for r in failed)
+        for reason, count in reasons.most_common():
+            print(f"         x{count}  {reason}")
     print(f"Manifest: {manifest_path}")
     print("\nStep comparison:")
     print("  STOCK: 30 steps")
     print("  NEURO: 24 steps (20% fewer)")
-    print("\nWait for ComfyUI to complete, then run analysis.")
+
+    if not queued:
+        print("\nNOTHING WAS QUEUED -- no renders will appear and the analysis "
+              "scripts will find no pairs. Fix the errors above and re-run.")
+    elif failed or skipped_tests:
+        print("\nPartial run: the analysis scripts will see fewer than the "
+              "published 35 matched pairs.")
+    else:
+        print("\nWait for ComfyUI to complete, then run analysis.")
 
     return manifest
 
@@ -303,16 +439,32 @@ def quick_test(num_tests: int = 2, num_seeds: int = 2):
     return run_benchmark_suite(num_seeds=num_seeds, tests_to_run=test_names)
 
 
+def exit_code(manifest: dict) -> int:
+    """0 only if every run was accepted; 1 otherwise.
+
+    The suite queues renders that a human then waits hours for, so a partial
+    or empty run has to be visible to whatever ran it -- not just to whoever
+    happens to read the scrollback.
+    """
+    if not manifest.get("queued_runs"):
+        return 1
+    if manifest.get("failed_runs") or manifest.get("skipped_tests"):
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
     import sys
 
     if len(sys.argv) > 1 and sys.argv[1] == "quick":
-        quick_test(num_tests=2, num_seeds=2)
+        manifest = quick_test(num_tests=2, num_seeds=2)
     elif len(sys.argv) > 1 and sys.argv[1] == "full":
-        run_benchmark_suite(num_seeds=5)
+        manifest = run_benchmark_suite(num_seeds=5)
     else:
         print("Usage:")
         print("  python neuromorphic_benchmark_suite.py quick  # 2 tests, 2 seeds each")
         print("  python neuromorphic_benchmark_suite.py full   # All tests, 5 seeds each")
         print("\nRunning quick test by default...")
-        quick_test(num_tests=2, num_seeds=2)
+        manifest = quick_test(num_tests=2, num_seeds=2)
+
+    sys.exit(exit_code(manifest))
