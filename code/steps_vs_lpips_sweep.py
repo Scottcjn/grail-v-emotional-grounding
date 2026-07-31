@@ -100,6 +100,14 @@ def queue_and_wait(workflow, timeout=600):
 
 
 def download_output(filename, subfolder=""):
+    """Fetch a rendered clip from ComfyUI.
+
+    ``/view`` answers a missing or expired file with an HTTP error whose body
+    is a short text page.  Writing that body to ``<name>.webp`` unchanged
+    produced a file that looks like a successful download (it even has a
+    plausible byte count in the log) and only fails hours later, in the LPIPS
+    stage, as an ``UnidentifiedImageError``.  Fail here instead.
+    """
     import requests
 
     url = f"{COMFYUI_SERVER}/view?filename={filename}"
@@ -107,14 +115,31 @@ def download_output(filename, subfolder=""):
         url += f"&subfolder={subfolder}"
     url += "&type=output"
     resp = requests.get(url, timeout=60)
+    resp.raise_for_status()
+
+    content = resp.content
+    # RIFF....WEBP -- cheap magic-number check; a proxy or an error page that
+    # returns HTTP 200 would otherwise sail straight through.
+    if len(content) < 12 or content[:4] != b"RIFF" or content[8:12] != b"WEBP":
+        raise RuntimeError(
+            f"{filename}: server returned {len(content)} bytes that are not a "
+            f"WebP file (starts with {content[:16]!r})"
+        )
+
     local_path = os.path.join(OUTPUT_DIR, filename)
     with open(local_path, 'wb') as f:
-        f.write(resp.content)
+        f.write(content)
     return local_path
 
 
 def load_frames(webp_path, max_frames=24):
-    """Load frames from animated WebP."""
+    """Load frames from animated WebP; empty list if the file is unreadable.
+
+    Both decode paths are guarded.  Previously only the ``webp`` module call
+    was, so on a machine without that optional dependency -- the documented
+    default -- any unreadable file raised straight out of Phase 2 and took
+    the whole sweep down with it.
+    """
     from PIL import Image
 
     frames = []
@@ -125,7 +150,11 @@ def load_frames(webp_path, max_frames=24):
             if frame.mode != 'RGB':
                 frame = frame.convert('RGB')
             frames.append(frame)
+        return frames
     except Exception:
+        frames = []
+
+    try:
         img = Image.open(webp_path)
         for i in range(max_frames):
             try:
@@ -134,6 +163,9 @@ def load_frames(webp_path, max_frames=24):
                 frames.append(frame)
             except EOFError:
                 break
+    except Exception as e:
+        print(f"    WARN: cannot read {os.path.basename(webp_path)}: {e}")
+        return []
     return frames
 
 
@@ -177,6 +209,7 @@ def main():
 
     # Phase 1: Render all step counts
     render_paths = {}  # {(condition, arc, steps): local_path}
+    render_failures = []
     total_renders = len(ARCS) * len(STEP_COUNTS) * 2
     done = 0
 
@@ -197,8 +230,23 @@ def main():
                         print(f"    OK: {filename} ({os.path.getsize(local)} bytes)")
                     else:
                         print(f"    WARN: No output file found")
+                        render_failures.append((prefix, "no output file in history"))
                 except Exception as e:
                     print(f"    FAILED: {e}")
+                    render_failures.append((prefix, f"{type(e).__name__}: {e}"))
+
+    print(f"\nRendered {len(render_paths)}/{total_renders} clips.")
+    if render_failures:
+        print(f"{len(render_failures)} render(s) failed:")
+        for prefix, reason in render_failures[:10]:
+            print(f"  - {prefix}: {reason}")
+        if len(render_failures) > 10:
+            print(f"  ... and {len(render_failures) - 10} more")
+    if not render_paths:
+        raise SystemExit(
+            "ERROR: no clips were rendered -- nothing to measure. "
+            "Check that ComfyUI has the LTX-2 checkpoint and the source image."
+        )
 
     # Phase 2: Compute LPIPS vs 60-step reference
     print("\n" + "=" * 60)
@@ -223,13 +271,22 @@ def main():
                     continue
 
                 score = compute_lpips(render_paths[test_key], render_paths[ref_key])
+                if np.isnan(score):
+                    print(f"  SKIP: {condition} {arc_name} {steps}→60 "
+                          f"(no readable frames)")
+                    continue
                 lpips_scores.append(score)
                 print(f"  {condition} {arc_name} {steps}→60: LPIPS={score:.4f}")
 
             if lpips_scores:
                 results[condition][steps] = {
                     "mean": float(np.mean(lpips_scores)),
-                    "std": float(np.std(lpips_scores)),
+                    # Sample std: these are len(ARCS) arcs drawn as a sample,
+                    # and every dispersion figure in the paper is a sample
+                    # std.  ddof=0 here reported a systematically smaller
+                    # spread than the published numbers.
+                    "std": float(np.std(lpips_scores, ddof=1)) if len(lpips_scores) > 1 else 0.0,
+                    "n": len(lpips_scores),
                     "scores": lpips_scores,
                 }
 

@@ -36,6 +36,7 @@ Emotional prompts ("eyes brighten with quiet realization") achieve the same visu
 │   ├── run_lpips_fvd.py                   # LPIPS computation
 │   ├── steps_vs_lpips_sweep.py            # Convergence analysis
 │   ├── neuromorphic_benchmark_suite.py    # Full benchmark pipeline
+│   ├── verify_paper_stats.py              # Re-derive the paper's statistics
 │   └── grail_config.py                    # Paths / endpoints (env-overridable)
 ├── data/
 │   ├── lpips_results.json                 # Frame-level LPIPS for all 35 pairs
@@ -107,11 +108,23 @@ python code/compute_clip_scores.py
 
 # 4. Run convergence sweep (requires ComfyUI + LTX-2)
 GRAIL_COMFYUI_SERVER=http://your-comfyui:8188 python code/steps_vs_lpips_sweep.py
+
+# 5. Check the paper's headline numbers against the LPIPS results
+python code/verify_paper_stats.py
 ```
 
 Rendering the clips in step 0 is `python code/neuromorphic_benchmark_suite.py full`
 (7 arcs x 5 seeds x STOCK/NEURO), which needs ComfyUI with LTX-2 and the source
-images in `GRAIL_SOURCE_IMAGE_DIR`.
+images in `GRAIL_SOURCE_IMAGE_DIR`. It exits non-zero if ComfyUI did not accept
+every job, and prints why — a run where nothing was queued produces no renders,
+so the later steps would otherwise just report "no pairs found".
+
+Step 5 needs no GPU and no renders: it re-derives the published mean, standard
+deviation, one-sample *t*, *p* and Cohen's *d* from the committed
+`data/lpips_results.json` and prints each next to the value in the paper.
+Aggregates across seeds use the sample standard deviation (ddof=1), which is
+what the paper reports; `numpy`'s default (ddof=0) yields *t* = −72.03 instead
+of the published −69.59.
 
 ## Tests
 

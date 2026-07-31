@@ -20,6 +20,25 @@ import numpy as np
 
 import grail_config
 
+
+def sample_std(values) -> float:
+    """Sample standard deviation (ddof=1), as reported throughout the paper.
+
+    Aggregates across seeds/pairs are estimates from a *sample* of seeds, so
+    they take Bessel's correction.  ``np.std`` defaults to ddof=0, which
+    reported a systematically smaller spread than the published figures: the
+    committed solo-portrait pairs give 0.004776 at ddof=0 versus the paper's
+    s = 0.005 (0.004944), and re-deriving the headline one-sample t from the
+    released artifact then yields -72.03 instead of the published -69.59.
+    Frame-level spread inside a single pair stays ddof=0: those 24 frames are
+    the complete set of measurements for that clip, not a sample of it.
+    """
+    values = np.asarray(values, dtype=float)
+    if values.size < 2:
+        return 0.0
+    return float(np.std(values, ddof=1))
+
+
 BENCHMARK_DIR = grail_config.benchmark_dir()
 RESULTS_FILE = grail_config.data_file("lpips_results.json")
 
@@ -225,21 +244,24 @@ def main():
     print("=" * 60)
 
     all_means = [r["mean"] for r in results.values()]
-    print(f"\nOverall LPIPS: {np.mean(all_means):.4f} (+/- {np.std(all_means):.4f})")
+    print(f"\nOverall LPIPS: {np.mean(all_means):.4f} (+/- {sample_std(all_means):.4f})")
     print(f"  Range: {np.min(all_means):.4f} - {np.max(all_means):.4f}")
 
     print("\nBy Test Case:")
     for arc, scores in sorted(by_arc.items()):
-        print(f"  {arc}: {np.mean(scores):.4f} (+/- {np.std(scores):.4f})")
+        print(f"  {arc}: {np.mean(scores):.4f} (+/- {sample_std(scores):.4f})")
 
     # Save results
     output = {
         "summary": {
             "overall_mean": float(np.mean(all_means)),
-            "overall_std": float(np.std(all_means)),
+            "overall_std": sample_std(all_means),
+            "std_ddof": 1,
             "n_pairs": len(results)
         },
-        "by_test": {arc: {"mean": float(np.mean(scores)), "std": float(np.std(scores))}
+        "by_test": {arc: {"mean": float(np.mean(scores)),
+                          "std": sample_std(scores),
+                          "n": len(scores)}
                     for arc, scores in by_arc.items()},
         "per_pair": results
     }

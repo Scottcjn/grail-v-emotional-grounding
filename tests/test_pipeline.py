@@ -250,7 +250,7 @@ def test_condition_parameters_match_the_paper(monkeypatch, condition, steps,
 
     def fake_queue(workflow):
         queued["workflow"] = workflow
-        return "prompt-id", 0.0
+        return "prompt-id", 0.0, ""
 
     monkeypatch.setattr(suite, "queue_prompt", fake_queue)
     case = suite.TEST_CASES[0]

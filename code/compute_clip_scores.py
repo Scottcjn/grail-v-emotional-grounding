@@ -123,6 +123,24 @@ def tokenize_words(text: str) -> set[str]:
     return set(re.findall(r"[a-z']+", text.lower()))
 
 
+def density_gap(tight: float, loose: float) -> float:
+    """How much tighter ``tight`` clusters than ``loose``, in percent.
+
+    "A is N% denser than B" means A's mean pairwise distance is N% below B's,
+    so B -- the thing being compared against -- is always the denominator.
+
+    Both summaries used to divide by the STOCK distance regardless of which
+    group won, so only the STOCK-is-looser branch was right.  With the
+    committed numbers (STOCK 0.43099, NEURO 0.60534) the losing branch is the
+    one that actually fires, and it printed "STOCK prompts are 40.5% denser
+    than NEURO" -- which is not what the numbers say: 0.60534 reduced by
+    40.5% is 0.360, not 0.431.  The correct figure is 28.8%.
+    """
+    if loose == 0:
+        return float("nan")
+    return (loose - tight) / loose * 100.0
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -285,11 +303,12 @@ def main():
     print("\n--- (b/c) Intra-Group Mean Cosine Distance --------------------------")
     print(f"  STOCK prompts (literal)     : {mean_stock_dist:.5f}")
     print(f"  NEURO prompts (emotional)   : {mean_neuro_dist:.5f}")
-    diff_pct = ((mean_neuro_dist - mean_stock_dist) / mean_stock_dist) * 100
     if mean_neuro_dist < mean_stock_dist:
-        print(f"  --> NEURO prompts are {abs(diff_pct):.1f}% DENSER than STOCK")
+        gap = density_gap(mean_neuro_dist, mean_stock_dist)
+        print(f"  --> NEURO prompts are {gap:.1f}% DENSER than STOCK")
     else:
-        print(f"  --> STOCK prompts are {abs(diff_pct):.1f}% denser than NEURO")
+        gap = density_gap(mean_stock_dist, mean_neuro_dist)
+        print(f"  --> STOCK prompts are {gap:.1f}% denser than NEURO")
 
     print("\n--- (d) Vocabulary Embedding Analysis --------------------------------")
     print(f"  Unique STOCK words : {len(stock_only):3d}  |  mean pairwise dist: {mean_stock_word_dist}")
@@ -302,12 +321,13 @@ def main():
     print(f"    mean pairwise distance : {mean_lit_word_dist}")
 
     if mean_emo_word_dist is not None and mean_lit_word_dist is not None:
-        vocab_diff = ((mean_emo_word_dist - mean_lit_word_dist) / mean_lit_word_dist) * 100
         if mean_emo_word_dist < mean_lit_word_dist:
-            print(f"\n  ==> Emotional vocab is {abs(vocab_diff):.1f}% DENSER than literal vocab")
+            gap = density_gap(mean_emo_word_dist, mean_lit_word_dist)
+            print(f"\n  ==> Emotional vocab is {gap:.1f}% DENSER than literal vocab")
             print("      (supports GRAIL-V claim: emotion words cluster in embedding space)")
         else:
-            print(f"\n  ==> Literal vocab is {abs(vocab_diff):.1f}% denser than emotional vocab")
+            gap = density_gap(mean_lit_word_dist, mean_emo_word_dist)
+            print(f"\n  ==> Literal vocab is {gap:.1f}% denser than emotional vocab")
 
     print("\n" + "=" * 72)
 

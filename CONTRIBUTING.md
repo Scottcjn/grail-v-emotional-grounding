@@ -29,6 +29,7 @@ Current entry points include:
 - `code/steps_vs_lpips_sweep.py`
 - `code/neuromorphic_prompt_translator.py`
 - `code/neuromorphic_benchmark_suite.py`
+- `code/verify_paper_stats.py`
 - `code/grail_config.py`
 
 ### `human_eval/`
@@ -79,6 +80,7 @@ python code/run_lpips_fvd.py
 python code/compute_clip_image_text.py
 python code/compute_clip_scores.py
 python code/steps_vs_lpips_sweep.py
+python code/verify_paper_stats.py   # no GPU/renders needed
 ```
 
 Paths and endpoints are resolved in `code/grail_config.py`; see the
